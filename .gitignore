@@ -13,8 +13,10 @@ build/
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+compile_commands.json
 
-# Desktop build's fake SD card
+# Desktop build's fake SD card and internal memory
+desktop-data/
 sdcard/
 
 # OS clutter
