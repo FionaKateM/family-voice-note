@@ -153,6 +153,47 @@ void test_photo_command_saves_profile_photo() {
     TEST_ASSERT_TRUE(bodyOf(1)["user_id"].as<long long>() == kTester);
 }
 
+void test_mp3_command_sends_test_tone_as_voice_note() {
+    startAndJoin();
+    hw->files.files[tryOut->testTonePath()] = "MP3DATA";
+    queue(telegramOk(messageJson(80, kTester, voiceContent("TONE", 3))));
+
+    deliver(messageUpdate(2, messageJson(3, kTester, textContent("/mp3"))));
+
+    std::vector<std::string> expected = {"getUpdates", "sendVoice"};
+    TEST_ASSERT_TRUE(methodsCalled() == expected);
+    const std::string& upload = hw->network.requests[1].body;
+    TEST_ASSERT_TRUE(upload.find("name=\"duration\"\r\n\r\n3\r\n") != std::string::npos);
+    TEST_ASSERT_TRUE(upload.find("filename=\"test-tone.mp3\"") != std::string::npos);
+    TEST_ASSERT_TRUE(upload.find("Content-Type: audio/mpeg") != std::string::npos);
+    TEST_ASSERT_TRUE(upload.find("MP3DATA") != std::string::npos);
+}
+
+void test_mp3_command_says_so_when_tone_is_missing() {
+    startAndJoin();
+    queue(telegramOk(messageJson(81, kTester, textContent("Couldn't find"))));
+
+    deliver(messageUpdate(2, messageJson(4, kTester, textContent("/mp3"))));
+
+    std::vector<std::string> expected = {"getUpdates", "sendMessage"};
+    TEST_ASSERT_TRUE(methodsCalled() == expected);
+    const std::string text = bodyOf(1)["text"].as<std::string>();
+    TEST_ASSERT_TRUE(text.find("Couldn't find the test MP3") != std::string::npos);
+}
+
+void test_mp3_command_reports_upload_failure() {
+    startAndJoin();
+    hw->files.files[tryOut->testTonePath()] = "MP3DATA";
+    queue(telegramError(400, "Bad Request: wrong file type"));
+    queue(telegramOk(messageJson(82, kTester, textContent("Couldn't send"))));
+
+    deliver(messageUpdate(2, messageJson(5, kTester, textContent("/mp3"))));
+
+    std::vector<std::string> expected = {"getUpdates", "sendVoice", "sendMessage"};
+    TEST_ASSERT_TRUE(methodsCalled() == expected);
+    TEST_ASSERT_EQUAL_STRING("Couldn't send the test MP3.", bodyOf(2)["text"]);
+}
+
 void test_step_waits_after_errors() {
     queue(networkDown());
     TEST_ASSERT_EQUAL(5000, tryOut->step());
@@ -170,6 +211,9 @@ int main(int, char**) {
     RUN_TEST(test_buttons_round_trip);
     RUN_TEST(test_voice_note_is_saved_reacted_to_and_sent_back_twice);
     RUN_TEST(test_photo_command_saves_profile_photo);
+    RUN_TEST(test_mp3_command_sends_test_tone_as_voice_note);
+    RUN_TEST(test_mp3_command_says_so_when_tone_is_missing);
+    RUN_TEST(test_mp3_command_reports_upload_failure);
     RUN_TEST(test_step_waits_after_errors);
     return UNITY_END();
 }
