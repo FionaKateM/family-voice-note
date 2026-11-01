@@ -42,7 +42,8 @@ public:
     bool hasBotToken() const;
     bool setBotToken(const std::string& token);
 
-    // Device timezone as a name like "Europe/London". Empty until confirmed (ticket 1.8).
+    // Device timezone as a name like "Europe/London". Empty until confirmed.
+    // setTimezone refuses names that aren't in the built-in table (app/time/TimeZones.h).
     std::string timezone() const;
     bool setTimezone(const std::string& name);
 

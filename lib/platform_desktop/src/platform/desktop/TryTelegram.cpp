@@ -1,5 +1,7 @@
 #include "platform/desktop/TryTelegram.h"
 
+#include <fstream>
+#include <iterator>
 #include <random>
 #include <string>
 
@@ -22,6 +24,19 @@ std::string randomCode() {
     std::string code;
     for (int i = 0; i < 16; ++i) code += letters[pick(rd)];
     return code;
+}
+
+// Puts the committed test tone on the pretend SD card for /mp3.
+// The path is relative to where the program is run from (the repo folder).
+void copyTestTone(DesktopFileStorage& files, const std::string& sdPath, Logger& log) {
+    const char* source = "assets/test-audio/test-tone.mp3";
+    std::ifstream in(source, std::ios::binary);
+    if (!in) {
+        log.warning(std::string("Couldn't find ") + source + ", so /mp3 won't work. Run from the repo folder.");
+        return;
+    }
+    const std::string audio((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (!files.writeFile(sdPath, audio)) log.warning("Couldn't copy the test MP3 to the pretend SD card");
 }
 
 }  // namespace
@@ -48,6 +63,7 @@ int runTelegramTryOut(const std::filesystem::path& dataFolder) {
     DesktopClock clock;
     telegram::TelegramClient client(network, files, log, token);
     telegram::TryOut tryOut(client, log, randomCode());
+    copyTestTone(files, tryOut.testTonePath(), log);
 
     if (!tryOut.start()) return 1;
     log.info("Waiting for messages. Press Ctrl+C to stop.");

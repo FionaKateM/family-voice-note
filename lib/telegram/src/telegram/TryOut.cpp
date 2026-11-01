@@ -7,10 +7,15 @@ namespace fvb {
 namespace telegram {
 
 namespace {
+// The test tone made by scripts/make-test-tone.sh. Its real length is 3.1
+// seconds; Telegram wants whole seconds.
+const int kTestToneSeconds = 3;
+
 const char* kHelp =
     "Try:\n"
     "/buttons to see tap buttons\n"
     "/photo to save your profile photo\n"
+    "/mp3 to get a test tone recorded the way the box records\n"
     "or send a voice note and it will come back to you.";
 }
 
@@ -79,6 +84,8 @@ void TryOut::handleMessage(const Message& message) {
         reply("Do the buttons work?", &keyboard);
     } else if (isCommand && command == "photo") {
         handlePhotoCommand(message);
+    } else if (isCommand && command == "mp3") {
+        handleMp3Command();
     } else {
         reply(std::string("Got a ") + toString(message.kind) + ".\n" + kHelp);
     }
@@ -117,6 +124,20 @@ void TryOut::handleVoice(const Message& message) {
     if (!client_.sendVoiceById(chat_, sent.file.fileId, "And again, re-sent without uploading")) {
         warn("Couldn't re-send the voice note");
     }
+}
+
+void TryOut::handleMp3Command() {
+    const std::string path = testTonePath();
+    if (!client_.sendVoiceFile(chat_, path, kTestToneSeconds, "Test tone: MP3, mono, 16 kHz, 32 kbps")) {
+        warn("Couldn't send the test MP3");
+        if (client_.lastError().kind == Error::Kind::Local) {
+            reply("Couldn't find the test MP3 on the pretend SD card. Run the try-out from the repo folder.");
+        } else {
+            reply("Couldn't send the test MP3.");
+        }
+        return;
+    }
+    log_.info("Sent the test MP3 as a voice note");
 }
 
 void TryOut::handlePhotoCommand(const Message& message) {

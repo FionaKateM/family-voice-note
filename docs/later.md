@@ -15,3 +15,4 @@ Features deliberately left out of v1. Don't build these unless Fiona asks.
 
 - When a contact is asleep, ask "are you sure?" before sending, or hold the message until they wake up.
 - More things for contacts to set up when they join.
+- Noticing when the box has moved country (by checking its internet location now and then) and asking the admins whether to switch timezone. Dropped from v1 in ticket 1.8: the location is guessed once at setup, and parents change it in `/settings`.
