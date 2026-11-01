@@ -8,11 +8,13 @@ namespace fvb {
 // Small values kept in the ESP32's internal memory (NVS): settings, the bot token,
 // people lists. Survives the SD card being removed or swapped.
 //
-// Keys are limited to 15 characters because that is NVS's limit. Implementations
-// refuse longer keys so the desktop build catches them before the device does.
+// Keys are limited to 15 characters and string values to 4000 bytes, because
+// those are NVS's limits. Implementations refuse anything bigger so the desktop
+// build catches it before the device does.
 class SettingsStore {
 public:
     static constexpr size_t kMaxKeyLength = 15;
+    static constexpr size_t kMaxValueLength = 4000;
 
     virtual ~SettingsStore() = default;
 
@@ -26,6 +28,7 @@ public:
     static bool isValidKey(const std::string& key) {
         return !key.empty() && key.size() <= kMaxKeyLength;
     }
+    static bool isValidValue(const std::string& value) { return value.size() <= kMaxValueLength; }
 };
 
 }  // namespace fvb

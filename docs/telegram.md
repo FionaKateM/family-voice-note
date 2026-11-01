@@ -62,15 +62,15 @@ These can only be confirmed with a real bot and phone:
 The desktop build has a try-out mode for testing against real Telegram before the conversation engine exists.
 
 1. Make a test bot with @BotFather in Telegram and copy its token.
-2. Copy `secrets/setup.example.txt` to `secrets/setup.txt` and put the token on the `BOT_TOKEN=` line. (Git ignores this file.)
-3. Build and run:
+2. Copy `secrets/setup.example.txt` to `secrets/setup.txt` and fill in `BOT_TOKEN`, `CHILD_NAME` and `ADMIN_ID`. (Git ignores this file. The Wi-Fi lines aren't used on the laptop.)
+3. Build and run. `--setup` saves the token into the laptop box's pretend internal memory, the same way the device reads its setup file (ticket 1.2). After the first time you can leave it off.
 
     ```bash
     pio run -e desktop
     ```
 
     ```bash
-    .pio/build/desktop/program --try-telegram
+    .pio/build/desktop/program --setup secrets/setup.txt --try-telegram
     ```
 
 4. It prints a `https://t.me/...?start=...` link. Open it on your phone and press Start. Only the phone that opens the link gets answers; anyone else is ignored. The link changes every run.

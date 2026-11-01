@@ -1,34 +1,19 @@
 #include "platform/desktop/TryTelegram.h"
 
-#include <fstream>
 #include <random>
 #include <string>
 
+#include "app/storage/Storage.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
 #include "platform/desktop/DesktopNetwork.h"
+#include "platform/desktop/DesktopSettingsStore.h"
 #include "telegram/TelegramClient.h"
 #include "telegram/TryOut.h"
 
 namespace fvb {
 
 namespace {
-
-// Just enough to pull BOT_TOKEN out of a setup file. The box's real setup file
-// handling is part of ticket 1.2.
-std::string readBotToken(const std::filesystem::path& setupFile) {
-    std::ifstream in(setupFile);
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.rfind("BOT_TOKEN=", 0) != 0) continue;
-        std::string value = line.substr(10);
-        const char* space = " \t\r\n";
-        size_t first = value.find_first_not_of(space);
-        size_t last = value.find_last_not_of(space);
-        return first == std::string::npos ? "" : value.substr(first, last - first + 1);
-    }
-    return "";
-}
 
 std::string randomCode() {
     static const char letters[] = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -41,17 +26,25 @@ std::string randomCode() {
 
 }  // namespace
 
-int runTelegramTryOut(const std::filesystem::path& setupFile, const std::filesystem::path& dataFolder) {
+int runTelegramTryOut(const std::filesystem::path& dataFolder) {
     DesktopLogger log;
-    const std::string token = readBotToken(setupFile);
-    if (token.empty() || token.find("FAKE") != std::string::npos) {
-        log.error("No bot token found. Put a BOT_TOKEN= line in " + setupFile.string() +
-                  " (copy secrets/setup.example.txt to start).");
+    DesktopFileStorage files(dataFolder / "sdcard");
+    DesktopSettingsStore store(dataFolder / "nvs");
+    Storage storage(files, store);
+
+    // Same setup file handling as the box itself (ticket 1.2).
+    const SetupResult setup = storage.applySetupFile();
+    for (const auto& p : setup.problems) log.error("setup.txt: " + p);
+    if (setup.outcome == SetupResult::Outcome::Rejected) return 1;
+
+    const std::string token = storage.settings.botToken();
+    if (token.empty()) {
+        log.error("No bot token saved yet. Run once with --setup secrets/setup.txt "
+                  "(copy secrets/setup.example.txt to start).");
         return 1;
     }
 
     DesktopNetwork network;
-    DesktopFileStorage files(dataFolder / "sdcard");
     DesktopClock clock;
     telegram::TelegramClient client(network, files, log, token);
     telegram::TryOut tryOut(client, log, randomCode());

@@ -28,6 +28,12 @@ pio run -e desktop
 
 It keeps its pretend SD card and internal memory in `desktop-data/`, which git ignores.
 
+To give it your setup file, add `--setup`. This copies the file onto the pretend SD card, where the box reads it and deletes the copy. Your original stays put:
+
+```bash
+.pio/build/desktop/program --setup secrets/setup.txt
+```
+
 To try the Telegram connection from your phone with a test bot, see [docs/telegram.md](docs/telegram.md#trying-it-on-the-laptop).
 
 Build the real device firmware:
