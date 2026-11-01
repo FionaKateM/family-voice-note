@@ -10,6 +10,7 @@
 #include "platform/desktop/DesktopFileStorage.h"
 #include "platform/desktop/DesktopNetwork.h"
 #include "platform/desktop/DesktopSettingsStore.h"
+#include "platform/desktop/StopRequest.h"
 #include "telegram/TelegramClient.h"
 #include "telegram/TryOut.h"
 
@@ -60,17 +61,22 @@ int runTelegramTryOut(const std::filesystem::path& dataFolder) {
     }
 
     DesktopNetwork network;
+    // Nothing here needs saving, so Ctrl+C can abandon any request straight away.
+    network.setCancelCheck(stopRequested);
     DesktopClock clock;
     telegram::TelegramClient client(network, files, log, token);
     telegram::TryOut tryOut(client, log, randomCode());
     copyTestTone(files, tryOut.testTonePath(), log);
 
-    if (!tryOut.start()) return 1;
+    if (!tryOut.start()) return stopRequested() ? 0 : 1;
     log.info("Waiting for messages. Press Ctrl+C to stop.");
-    for (;;) {
-        uint32_t waitMs = tryOut.step();
-        if (waitMs > 0) clock.sleepMs(waitMs);
+    while (!stopRequested()) {
+        const uint32_t waitMs = tryOut.step();
+        // Wait in small pieces so Ctrl+C is noticed quickly.
+        for (uint32_t waited = 0; waited < waitMs && !stopRequested(); waited += 100) clock.sleepMs(100);
     }
+    log.info("Stopped");
+    return 0;
 }
 
 }  // namespace fvb

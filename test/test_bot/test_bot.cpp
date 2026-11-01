@@ -216,6 +216,19 @@ void test_bad_token_stops_the_bot() {
     TEST_ASSERT_EQUAL(0, hw->network.requests.size());  // goes no further
 }
 
+void test_checking_the_token_does_not_touch_storage() {
+    restart();
+    hw->settings.values.clear();
+    hw->network.responses.push_back(telegramOk(R"({"id":42,"is_bot":true,"first_name":"Box","username":"TestBoxBot"})"));
+    TEST_ASSERT_EQUAL(0, bot->connect());
+    TEST_ASSERT_TRUE(bot->state() == Bot::State::Connected);
+    TEST_ASSERT_EQUAL(0, hw->settings.values.size());
+
+    bot->resume();
+    TEST_ASSERT_TRUE(bot->state() == Bot::State::Running);
+    TEST_ASSERT_EQUAL(kBotId, hw->settings.getInt("tg_bot_id", 0));
+}
+
 void test_offline_at_start_retries() {
     restart();
     hw->network.responses.push_back(networkDown());
@@ -658,6 +671,7 @@ void test_store_removes_expired() {
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_bad_token_stops_the_bot);
+    RUN_TEST(test_checking_the_token_does_not_touch_storage);
     RUN_TEST(test_offline_at_start_retries);
     RUN_TEST(test_position_is_saved_after_each_message);
     RUN_TEST(test_messages_are_not_handled_twice_after_a_restart);

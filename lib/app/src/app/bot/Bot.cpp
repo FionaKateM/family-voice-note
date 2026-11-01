@@ -141,23 +141,29 @@ uint32_t Bot::connect() {
         return retryAfter > 0 ? static_cast<uint32_t>(retryAfter) * 1000 : kRetryMs;
     }
 
+    botId_ = info.id;
+    state_ = State::Connected;
+    log_.info("Connected to Telegram as @" + info.username);
+    return 0;
+}
+
+void Bot::resume() {
+    if (state_ != State::Connected) return;
+
     // The saved position only means something for the bot it came from. A new
     // bot token (from a new setup.txt) starts again from that bot's first message.
     const int64_t savedBot = store_.getInt(kBotId, 0);
-    if (savedBot == info.id) {
+    if (savedBot == botId_) {
         savedPosition_ = store_.getInt(kPosition, 0);
     } else {
         if (savedBot != 0) log_.info("The bot token has changed, so starting from the new bot's first message");
-        store_.setInt(kBotId, info.id);
+        store_.setInt(kBotId, botId_);
         store_.remove(kPosition);
         store_.remove(kBusy);
         savedPosition_ = 0;
     }
     client_.setNextUpdateId(savedPosition_);
-
     state_ = State::Running;
-    log_.info("Connected to Telegram as @" + info.username);
-    return 0;
 }
 
 uint32_t Bot::poll(std::vector<Update>& updates) {
@@ -179,7 +185,12 @@ uint32_t Bot::poll(std::vector<Update>& updates) {
 
 uint32_t Bot::step() {
     switch (state_) {
-        case State::NotConnected: return connect();
+        case State::NotConnected: {
+            const uint32_t wait = connect();
+            resume();
+            return wait;
+        }
+        case State::Connected: resume(); break;
         case State::TokenRejected: return 12 * kRetryMs;  // nothing more to do until restarted with a new token
         case State::Running: break;
     }

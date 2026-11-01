@@ -103,7 +103,12 @@ private:
 // add... methods.
 class Bot {
 public:
-    enum class State { NotConnected, Running, TokenRejected };
+    enum class State {
+        NotConnected,   // the bot token hasn't been checked yet
+        Connected,      // token checked; resume() still to do
+        Running,
+        TokenRejected,  // Telegram turned the token down; goes no further
+    };
 
     // How long a conversation can sit with no reply before it's forgotten.
     static constexpr int64_t kConversationTimeoutSeconds = 7 * 24 * 60 * 60;
@@ -122,17 +127,23 @@ public:
 
     // ---- Running ----
 
-    // Checks the bot token with Telegram and picks up where polling got to
-    // before the last restart. Call until state() isn't NotConnected. Returns
-    // how many milliseconds to wait before trying again.
+    // Checks the bot token with Telegram. Doesn't touch storage, so it can run
+    // without holding any lock. Call until state() isn't NotConnected; on
+    // success it becomes Connected. Returns how many milliseconds to wait
+    // before trying again.
     uint32_t connect();
+    // Once Connected: picks up where polling got to before the last restart,
+    // and the state becomes Running. Touches storage, but doesn't wait on the
+    // network.
+    void resume();
     // Waits for Telegram to send new messages (up to 25 seconds). Doesn't touch
     // storage, so it can run without holding any lock. Returns how many
     // milliseconds to wait before polling again (0 normally).
     uint32_t poll(std::vector<telegram::Update>& updates);
     // Handles what poll returned. Touches storage and sends replies.
     void handle(const std::vector<telegram::Update>& updates);
-    // connect() if needed, then poll() and handle(). Returns milliseconds to wait.
+    // connect() and resume() if needed, then poll() and handle(). Returns
+    // milliseconds to wait.
     uint32_t step();
 
     State state() const { return state_; }
@@ -201,6 +212,7 @@ private:
     ConversationStore conversations_;
 
     State state_ = State::NotConnected;
+    int64_t botId_ = 0;  // from getMe
     int64_t savedPosition_ = 0;
 
     std::map<std::string, Command> commands_;

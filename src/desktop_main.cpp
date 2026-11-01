@@ -1,6 +1,7 @@
 // Entry point for the laptop version of the box.
 //
-//   .pio/build/desktop/program                 run until Ctrl+C. Once a bot token has been
+//   .pio/build/desktop/program                 run until Ctrl+C (press it twice to quit
+//                                              without waiting). Once a bot token has been
 //                                              saved, the box answers on Telegram
 //   .pio/build/desktop/program --data <folder> use a different data folder
 //   .pio/build/desktop/program --ticks <n>     stop after n loops (used by CI)
@@ -16,7 +17,7 @@
 //   sdcard/  stands in for the SD card
 //   nvs/     stands in for the ESP32's internal memory
 
-#include <csignal>
+#include <atomic>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -33,16 +34,9 @@
 #include "platform/desktop/DesktopFileStorage.h"
 #include "platform/desktop/DesktopNetwork.h"
 #include "platform/desktop/DesktopSettingsStore.h"
+#include "platform/desktop/StopRequest.h"
 #include "platform/desktop/TryTelegram.h"
 #include "telegram/TelegramClient.h"
-
-namespace {
-
-volatile std::sig_atomic_t stopRequested = 0;
-
-void onSignal(int) { stopRequested = 1; }
-
-}  // namespace
 
 int main(int argc, char** argv) {
     std::filesystem::path dataFolder = "desktop-data";
@@ -66,8 +60,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::signal(SIGINT, onSignal);
-    std::signal(SIGTERM, onSignal);
+    fvb::installStopHandler();
 
     fvb::DesktopPlaceholderAudio audio;
     fvb::DesktopTerminalDisplay display;
@@ -104,40 +97,54 @@ int main(int argc, char** argv) {
     std::thread telegramThread;
     fvb::telegram::TelegramClient telegramClient(network, files, logger, app.storage().settings.botToken());
     fvb::Bot bot(telegramClient, app.storage(), settings, clock, logger);
+
+    // Ctrl+C abandons a request only while connecting or waiting for new
+    // messages. A reply that's being sent is let finish, so a message is never
+    // marked as handled with its answer cut off.
+    std::atomic<bool> telegramWaiting{false};
+    network.setCancelCheck([&telegramWaiting] { return fvb::stopRequested() && telegramWaiting.load(); });
+
     if (app.storage().settings.hasBotToken()) {
         telegramThread = std::thread([&] {
-            while (!stopRequested && bot.state() != fvb::Bot::State::TokenRejected) {
+            while (!fvb::stopRequested() && bot.state() != fvb::Bot::State::TokenRejected) {
                 uint32_t waitMs;
                 if (bot.state() == fvb::Bot::State::NotConnected) {
-                    std::lock_guard<std::mutex> lock(boxLock);
+                    telegramWaiting = true;
                     waitMs = bot.connect();
+                    telegramWaiting = false;
+                } else if (bot.state() == fvb::Bot::State::Connected) {
+                    std::lock_guard<std::mutex> lock(boxLock);
+                    bot.resume();
+                    waitMs = 0;
                 } else {
                     std::vector<fvb::telegram::Update> updates;
+                    telegramWaiting = true;
                     waitMs = bot.poll(updates);
+                    telegramWaiting = false;
+                    // Anything just received is left for next time: Telegram
+                    // sends it again because the box never confirmed it.
+                    if (fvb::stopRequested()) break;
                     std::lock_guard<std::mutex> lock(boxLock);
                     bot.handle(updates);
                 }
-                for (uint32_t waited = 0; waited < waitMs && !stopRequested; waited += 100) clock.sleepMs(100);
+                // Wait in small pieces so Ctrl+C is noticed quickly.
+                for (uint32_t waited = 0; waited < waitMs && !fvb::stopRequested(); waited += 100) {
+                    clock.sleepMs(100);
+                }
             }
         });
     }
 
-    while (!stopRequested && (maxTicks < 0 || static_cast<long>(app.tickCount()) < maxTicks)) {
+    while (!fvb::stopRequested() && (maxTicks < 0 || static_cast<long>(app.tickCount()) < maxTicks)) {
         {
             std::lock_guard<std::mutex> lock(boxLock);
             app.tick();
         }
         clock.sleepMs(10);
     }
-    logger.info("Stopped after " + std::to_string(app.tickCount()) + " loops");
 
-    if (telegramThread.joinable()) {
-        // The Telegram thread may be waiting up to 35 seconds for Telegram to
-        // answer. Rather than wait, take the lock (so nothing is half-saved) and
-        // leave straight away.
-        std::lock_guard<std::mutex> lock(boxLock);
-        std::fflush(nullptr);
-        std::_Exit(0);
-    }
+    fvb::requestStop();  // for when --ticks ran out rather than Ctrl+C
+    if (telegramThread.joinable()) telegramThread.join();
+    logger.info("Stopped after " + std::to_string(app.tickCount()) + " loops");
     return 0;
 }
