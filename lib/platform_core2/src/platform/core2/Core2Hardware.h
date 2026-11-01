@@ -6,6 +6,7 @@
 // Display and Input use M5Unified and should roughly work. Storage, settings,
 // network, audio and LEDs are placeholders that ticket 2.1 (bring-up) replaces.
 
+#include "hal/FirmwareInstaller.h"
 #include "hal/Hardware.h"
 
 namespace fvb {
@@ -123,6 +124,25 @@ public:
     void setPixel(uint8_t, Colour) override {}
     void setAll(Colour) override {}
     void show() override {}
+};
+
+// Installing over the air comes in ticket 2.7 (using the ESP32's two app
+// slots and its automatic rollback). Until then it refuses, but restarting
+// works.
+class Core2PlaceholderFirmwareInstaller : public FirmwareInstaller {
+public:
+    bool begin(size_t, const std::string&, std::string& error) override {
+        error = "installing updates on the device isn't built yet";
+        return false;
+    }
+    bool write(const uint8_t*, size_t) override { return false; }
+    bool finish(std::string& error) override {
+        error = "installing updates on the device isn't built yet";
+        return false;
+    }
+    void abort() override {}
+    void restart() override;
+    void markGood() override {}
 };
 
 }  // namespace fvb

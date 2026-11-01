@@ -74,6 +74,8 @@ To try the low battery and offline alerts, add `--battery` with a percentage (th
 .pio/build/desktop/program --battery 15 --offline-hours 30
 ```
 
+To try `/update` without publishing a real release, see [docs/updates.md](docs/updates.md#trying-it-on-the-laptop).
+
 Build the real device firmware:
 
 ```bash
@@ -81,6 +83,8 @@ pio run -e core2
 ```
 
 GitHub Actions runs all of these, plus a check for secrets, on every push.
+
+Releases are published by hand from the Actions tab. See [docs/updates.md](docs/updates.md#publishing-a-new-version).
 
 ### Stopping secrets being committed
 

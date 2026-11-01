@@ -225,16 +225,17 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 | Child's name | Used in bot messages | From setup file |
 | Status (`/status`) | Battery and charging, Wi-Fi strength, storage used (MB and %), firmware version, messages waiting to send | |
 | Last deleted (`/trash getlast`) | Sends the admin the most recent recording from the bin | |
-| Update (`/update`) | See section 13 | |
+| Update (`/update`, or the Update button) | See section 13 | |
 
 ## 13. Software updates
 
 - New firmware is published as a GitHub Release on this repo. The device only ever checks that one location, which is built into the firmware. It never installs from a link someone sends it.
-- Once a day the device checks for a new version. If there is one, admins get a message: "Version 1.3 is available. Send /update to install."
+- Once a day, at 6pm in the box's time zone, the device checks for a new version. If the box is off or offline at 6pm it checks later that evening, but not after 10pm. If there is one, admins get a message: "Version 1.3 is available. Send /update to install."
 - `/update`: the bot replies "Version 1.3 is available: [short note on what's new]. Install? [Yes] [No]", or "Already up to date".
 - On Yes, it downloads over HTTPS, checks the file is intact (checksum), installs, restarts and reports "Updated to 1.3".
 - **Rollback:** if the new version doesn't start properly and reconnect to Telegram within a few minutes, the device goes back to the previous version and tells the admins.
 - Each family's admins update their own devices. The maintainer, as an admin on all devices, can also update any of them.
+- **How it works (ticket 1.10):** each release carries the firmware and a small `firmware.json` (version, note on what's new, size and SHA-256 checksum). Releases are published from the Actions tab, by hand, after bumping the version in `lib/app/src/app/Version.h`. Each new version is announced to admins once, not every day. `/update` and the Update button don't count as the day's 6pm check, but the 6pm check won't announce a version an admin has already been offered. The note on what's new is cut to 300 characters. After an update, the admin who said yes gets "Updated to 1.3" and the other admins are told who updated it. `/update` isn't listed in `/help`; it's in the `/settings` menu as the Update button, and the daily message tells admins about it. Details, and how to try it on the laptop, are in `docs/updates.md`.
 
 ## 14. Technical approach
 

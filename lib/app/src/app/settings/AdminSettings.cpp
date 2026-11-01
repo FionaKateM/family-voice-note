@@ -275,6 +275,11 @@ public:
             s_.invites_.makeInvite(ctx, role);
             return Outcome::Finished;
         }
+        if (value == "update" && s_.onUpdate_) {
+            ctx.editButtonMessage("Settings closed. Checking for updates…");
+            s_.onUpdate_(ctx);
+            return Outcome::Finished;
+        }
         if (value == "trash") {
             ctx.editButtonMessage("Settings closed.");
             s_.sendLastDeleted(ctx);
@@ -634,6 +639,7 @@ private:
             {ctx.button("Status", "go:status"), ctx.button("Last deleted", "trash")},
             {ctx.button("Done", "done")},
         };
+        if (s_.onUpdate_) k[4].push_back(ctx.button("Update", "update"));  // beside Child's name
         if (!note.empty()) return note + "\n\nAnything else?";
         return "Settings for " + child() + "'s box. What would you like to look at or change?";
     }
@@ -865,7 +871,7 @@ std::string AdminSettings::statusText() const {
     }
 
     out += "\nWaiting to send: " + std::to_string(storage_.outbox.size()) + " voice notes";
-    out += "\nFirmware: " + std::string(kFirmwareVersion);
+    out += "\nFirmware: " + firmwareVersion();
     return out;
 }
 

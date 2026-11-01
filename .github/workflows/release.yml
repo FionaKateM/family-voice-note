@@ -1,0 +1,97 @@
+name: Release
+
+# Builds the Core2 firmware and publishes it as a GitHub Release, which the
+# boxes check once a day (section 13 of the requirements).
+#
+# How to release a new version:
+#   1. In a pull request, change kFirmwareVersion in lib/app/src/app/Version.h
+#      (for example to "0.2.0") and merge it into main.
+#   2. On GitHub: Actions > Release > Run workflow. Write a sentence or two on
+#      what's new (admins see it in Telegram), tick "Publish", and run it.
+#
+# Without "Publish" ticked it's a practice run: everything is built and checked,
+# and the files are kept with the workflow run (under "Artifacts"), but nothing
+# is published and no box will see it.
+#
+# Publishing only works from main, and refuses a version that's already been
+# released.
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "What's new, in a sentence or two. Admins see this in Telegram."
+        required: true
+        type: string
+      publish:
+        description: "Publish the release (leave unticked for a practice run)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version
+        id: version
+        run: echo "version=$(scripts/firmware-version.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Check it can be published
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Releases can only be published from main. This run is on $GITHUB_REF."
+            exit 1
+          fi
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "Version $VERSION has already been released. Change kFirmwareVersion in lib/app/src/app/Version.h first."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-release-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio==6.2.0
+      - name: Install libcurl, SDL2 and ffmpeg (for the desktop tests)
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libsdl2-dev ffmpeg
+
+      - name: Run tests
+        run: pio test -e desktop
+
+      - name: Build the Core2 firmware
+        run: pio run -e core2
+
+      - name: Make firmware.json
+        env:
+          NOTES: ${{ inputs.notes }}
+        run: scripts/make-release.sh .pio/build/core2/firmware.bin release --notes "$NOTES"
+
+      - name: Keep the files with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ steps.version.outputs.version }}
+          path: release/
+
+      - name: Publish
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          gh release create "v$VERSION" release/firmware.bin release/firmware.json \
+            --title "Version $VERSION" --notes "$NOTES" --target "$GITHUB_SHA" --latest
