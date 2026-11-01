@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  secrets:
+    name: Check for secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-secrets.sh
+
+  desktop:
+    name: Desktop build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-desktop-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio==6.2.0
+      - name: Run tests
+        run: pio test -e desktop
+      - name: Build
+        run: pio run -e desktop
+      - name: Start the desktop box briefly
+        run: .pio/build/desktop/program --data "$RUNNER_TEMP/box" --ticks 5
+
+  core2:
+    name: Core2 firmware compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-core2-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio==6.2.0
+      - run: pio run -e core2
