@@ -93,8 +93,10 @@ private:
 //      a role that's allowed to use it. A command ends any conversation they
 //      were in. Known people get a short reply for commands they can't use or
 //      that don't exist.
-//   5. Anything else goes to their conversation if they're in one, otherwise
-//      to the message handler (voice notes, ticket 1.7).
+//   5. A voice note from a contact goes to the message handler (ticket 1.7),
+//      even if they're in a conversation.
+//   6. Anything else goes to their conversation if they're in one, otherwise
+//      to the message handler.
 //
 // Button presses go to the conversation that made them, or to a handler
 // registered for the start of their callback data ("settings:..." and so on).
@@ -169,7 +171,8 @@ public:
     // if the code was recognised. If it returns false, strangers are ignored.
     void setStartLinkHandler(StartLinkHandler handler) { startLink_ = std::move(handler); }
     // Called for messages from known people that aren't commands and aren't part
-    // of a conversation. By default it points them at /help.
+    // of a conversation, and for every voice note from a contact. By default it
+    // points them at /help.
     void setMessageHandler(MessageHandler handler) { onMessage_ = std::move(handler); }
     // Called when someone who isn't on any list and isn't in a conversation
     // sends a message or presses a button (other than a recognised invite link).

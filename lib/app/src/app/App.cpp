@@ -21,6 +21,7 @@ void App::begin() {
         readSetupFile();
         // Retry times are measured from start-up, so old ones mean nothing now.
         storage_.outbox.resetRetryTimes();
+        storage_.jobs.resetRetryTimes();
     }
 
     if (!storage_.settings.hasBotToken()) {

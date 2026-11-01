@@ -82,9 +82,9 @@ To make it again, run `scripts/make-test-tone.sh`. If you change the length, als
 
 ## Trying it on the laptop
 
-The box itself now answers on Telegram (ticket 1.4): run the desktop build without `--try-telegram` once a token is saved. It knows only `/start`, `/help` and `/cancel` so far; the real commands arrive in tickets 1.5 to 1.7.
+The box itself answers on Telegram: run the desktop build without `--try-telegram` once a token is saved. Since ticket 1.7 it stores contacts' voice notes, sends the child's recordings, adds the 👀 when a message has been listened to, and sends monitor copies. It uses two connections to Telegram: one for the bot's long poll, and one for sending, so a recording goes straight away instead of waiting up to 25 seconds for the poll to finish.
 
-The try-out mode below is still useful for the voice note, MP3, reaction and photo checks above, which the box can't do yet.
+The try-out mode below is still a quick way to do the checks above on their own.
 
 1. Make a test bot with @BotFather in Telegram and copy its token.
 2. Copy `secrets/setup.example.txt` to `secrets/setup.txt` and fill in `BOT_TOKEN`, `CHILD_NAME` and `ADMIN_ID`. (Git ignores this file. The Wi-Fi lines aren't used on the laptop.)

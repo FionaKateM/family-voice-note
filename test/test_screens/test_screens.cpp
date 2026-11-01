@@ -46,6 +46,7 @@ struct Box {
         m.status = status;
         m.time = time;
         m.durationMs = 5000;
+        m.telegramMessageId = 600 + static_cast<int64_t>(storage.messages.messages(contact).size());
         return storage.messages.add(contact, m, paths::kDownload);
     }
 
@@ -436,6 +437,13 @@ void test_tapping_photo_plays_oldest_unread_and_marks_it_heard_at_the_end() {
     StoredMessage m;
     box.storage.messages.find(granny, first, m);
     TEST_ASSERT_TRUE(m.status == StoredMessage::Status::Heard);
+
+    // And the 👀 is queued for Telegram, on that message.
+    const auto jobs = box.storage.jobs.jobs();
+    TEST_ASSERT_EQUAL(1, jobs.size());
+    TEST_ASSERT_TRUE(jobs[0].kind == Job::Kind::Reaction);
+    TEST_ASSERT_EQUAL(m.telegramMessageId, jobs[0].telegramMessageId);
+    TEST_ASSERT_EQUAL(granny, jobs[0].contact);
 }
 
 void test_stopping_early_does_not_mark_heard() {
@@ -448,6 +456,7 @@ void test_stopping_early_does_not_mark_heard() {
     TEST_ASSERT_TRUE(box.hw.audio.playing.empty());
     box.screens.tick();
     TEST_ASSERT_EQUAL(1, box.unread(granny));
+    TEST_ASSERT_TRUE(box.storage.jobs.empty());  // no 👀
 }
 
 void test_changing_contact_stops_playing_without_marking_heard() {

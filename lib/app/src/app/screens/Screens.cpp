@@ -450,7 +450,7 @@ void Screens::checkPlaybackEnded() {
     if (storage_.messages.find(playingContact_, playingMessage_, message) &&
         message.direction == StoredMessage::Direction::Received &&
         message.status == StoredMessage::Status::Unread) {
-        storage_.messages.markHeard(playingContact_, playingMessage_);
+        storage_.markHeard(playingContact_, playingMessage_);  // also queues the 👀 in Telegram
         hw_.log.info("Message " + std::to_string(playingMessage_) + " heard");
         reloadContacts();
         if (screen_ == Screen::History) loadHistory();

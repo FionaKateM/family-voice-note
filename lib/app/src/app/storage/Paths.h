@@ -13,6 +13,8 @@ namespace fvb {
 //   /contacts/<n>/0002.mp3        a recording the child sent
 //   /contacts/<n>/photo.jpg       the contact's photo
 //   /outbox/<n>.txt               one file per message waiting to send
+//   /jobs/<n>.txt                 other Telegram work waiting: downloads, 👀
+//                                 reactions, monitor copies, notices
 //   /bin/<date>-<time>-c<n>-<name>.mp3   deleted and re-recorded recordings
 //   /work/                        files being recorded or downloaded
 //
@@ -23,6 +25,7 @@ namespace paths {
 constexpr const char* kSetupFile = "/setup.txt";
 constexpr const char* kContactsDir = "/contacts";
 constexpr const char* kOutboxDir = "/outbox";
+constexpr const char* kJobsDir = "/jobs";
 constexpr const char* kBinDir = "/bin";
 constexpr const char* kWorkDir = "/work";
 constexpr const char* kRecording = "/work/recording.mp3";
