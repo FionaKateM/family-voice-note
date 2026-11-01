@@ -96,8 +96,12 @@
 
 - The clock is set from the internet. Daylight saving is handled automatically.
 - **Device timezone:** during setup, the device guesses its location from its internet connection and asks the admin to confirm with buttons ("Looks like you're in [country]. Is that right? [Yes] [Change]"). Change shows a list of countries, then cities if that country has more than one timezone. Nobody ever types a timezone name.
-- **Moving country:** if the device later connects from a different country (set up in one, then taken to another), it asks the admins whether to switch.
+- **Moving country:** the location guess is only made once, during setup. If the box moves to another country, a parent changes the timezone in `/settings`.
 - **Contacts:** each contact has their own timezone and sleep hours, used for the asleep indicator.
+- **Overnight hours:** quiet hours and sleep hours can cross midnight (19:00 to 07:00). They start on the minute given and end just before the end time. The same start and end time means there are none, so admins can turn quiet hours off by setting them to 00:00 to 00:00.
+- **When the time isn't known:** until the clock has been set from the internet and the box's timezone confirmed, the box is never in quiet hours and nobody shows as asleep. Being awake by mistake is better than going dark by mistake.
+- **Where the box is:** the setup guess comes from a free location service that looks up the box's internet address (ipinfo.io, with ipapi.co as a backup). Only the country and timezone are kept; the address and town in the reply are thrown away.
+- **Timezone list:** the box carries its own list of countries and timezones, made from the IANA time zone database (see `docs/time.md`). Big countries list one city per set of clock rules (the US has eight, not 29). When a country changes its clocks, the list is updated with new firmware.
 
 ## 9. Who can do what
 

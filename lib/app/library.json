@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "description": "The box's logic. Plain C++ with no Arduino code.",
+  "dependencies": {
+    "bblanchon/ArduinoJson": "7.4.2"
+  }
+}

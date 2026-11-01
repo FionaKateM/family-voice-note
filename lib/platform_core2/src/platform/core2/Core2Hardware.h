@@ -16,6 +16,12 @@ public:
     bool isTimeSet() const override;
     int64_t unixTime() const override;
     void sleepMs(uint32_t ms) override;
+
+    // Starts setting the clock from internet time servers (NTP), and keeps it
+    // right from then on (the ESP32 checks again every hour). The clock is kept
+    // in UTC; local time is worked out by app/time, never by the C library.
+    // Call once Wi-Fi is connected (ticket 2.4). Safe to call again on reconnect.
+    void startInternetTime();
 };
 
 class Core2SerialLogger : public Logger {

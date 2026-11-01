@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "app/storage/TextRecord.h"
+#include "app/time/TimeZones.h"
 
 namespace fvb {
 
@@ -42,8 +43,11 @@ bool DeviceSettings::setBotToken(const std::string& token) {
 std::string DeviceSettings::timezone() const { return store_.getString(kTimezone); }
 
 bool DeviceSettings::setTimezone(const std::string& name) {
-    if (name.empty()) return false;
-    return store_.setString(kTimezone, name);
+    // Only zones in the built-in table, saved under the table's own name, so an
+    // old name like "Europe/Kiev" is stored as "Europe/Kyiv".
+    const TimeZoneInfo* zone = timezones::find(name);
+    if (!zone) return false;
+    return store_.setString(kTimezone, zone->name);
 }
 
 uint16_t DeviceSettings::quietStart() const {
