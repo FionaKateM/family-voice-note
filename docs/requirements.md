@@ -49,7 +49,7 @@
 
 - Play the latest message from the current contact.
 - History: a scrollable list of past messages with that contact, sent and received, tap to play.
-- When the child plays a received message to the end, the sender gets a reaction on their message in Telegram (👀). Telegram only allows reactions from a fixed list of emoji, so confirm the choice during the build.
+- When the child plays a received message to the end, the sender gets a reaction on their message in Telegram (👀). Telegram only allows reactions from a fixed list of emoji; 👀 is on it (confirmed in ticket 1.3).
 
 ### Sounds and lights
 
@@ -180,7 +180,8 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 - PlatformIO, Arduino framework, C++.
 - **Two builds from the same code:** the device build, and a desktop build that runs on a laptop. All hardware is reached through small interfaces (audio, screen, SD card, internal memory, network, clock, LEDs, power, buttons and touch, logging), so all the logic can be run and tested on a laptop.
 - **The desktop build is a working box:** it talks to real Telegram, uses a folder as its SD card, shows the screen in a 320×240 window, and uses the laptop's mic and speakers.
-- **Libraries to confirm during the build:** M5Unified, LVGL, ArduinoJson, shine-esp32 for MP3 recording, and an Opus decoder for incoming voice notes (ESP32-audioI2S or libopus). For Telegram, decide in ticket 1.3 whether UniversalTelegramBot handles voice uploads, buttons and reactions well enough, or whether a small custom client is simpler.
+- **Libraries to confirm during the build:** M5Unified, LVGL, ArduinoJson, shine-esp32 for MP3 recording, and an Opus decoder for incoming voice notes (ESP32-audioI2S or libopus).
+- **Telegram client:** a small client of our own (`lib/telegram`) built on the network interface, not UniversalTelegramBot, so it runs and is tested on the desktop build. Decided in ticket 1.3; reasons in `docs/telegram.md`.
 - **Performance:** audio runs on one processor core, and screen and network on the other. The screen and SD card share an SPI bus, so access must be locked. Audio is buffered in PSRAM and written to the card in chunks. Screen and LED updates are limited to 15 to 20 per second while recording.
 - **Telegram:** long polling (`getUpdates`, 25 second timeout) with the connection kept open.
 - **Storage:** settings, secrets and people lists in the ESP32's internal memory (NVS). Messages, photos and indexes on the SD card. The layout is described at the top of `lib/app/src/app/storage/Paths.h`.

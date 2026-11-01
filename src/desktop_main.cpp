@@ -5,6 +5,8 @@
 //   .pio/build/desktop/program --ticks <n>     stop after n loops (used by CI)
 //   .pio/build/desktop/program --setup <file>  copy a setup file onto the pretend SD card
 //                                              first, e.g. --setup secrets/setup.txt
+//   .pio/build/desktop/program --try-telegram  run a test bot against real Telegram
+//                                              instead of the box (see docs/telegram.md)
 //
 // --setup copies the file rather than moving it, because the box deletes setup.txt
 // from its card once read. Your original stays where it is.
@@ -24,7 +26,9 @@
 #include "app/App.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
+#include "platform/desktop/DesktopNetwork.h"
 #include "platform/desktop/DesktopSettingsStore.h"
+#include "platform/desktop/TryTelegram.h"
 
 namespace {
 
@@ -38,6 +42,7 @@ int main(int argc, char** argv) {
     std::filesystem::path dataFolder = "desktop-data";
     long maxTicks = -1;
     std::filesystem::path setupFile;
+    bool tryTelegram = false;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
@@ -46,8 +51,11 @@ int main(int argc, char** argv) {
             maxTicks = std::atol(argv[++i]);
         } else if (std::strcmp(argv[i], "--setup") == 0 && i + 1 < argc) {
             setupFile = argv[++i];
+        } else if (std::strcmp(argv[i], "--try-telegram") == 0) {
+            tryTelegram = true;
         } else {
-            std::fprintf(stderr, "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>]\n", argv[0]);
+            std::fprintf(stderr, "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--try-telegram]\n",
+                         argv[0]);
             return 2;
         }
     }
@@ -59,7 +67,7 @@ int main(int argc, char** argv) {
     fvb::DesktopTerminalDisplay display;
     fvb::DesktopFileStorage files(dataFolder / "sdcard");
     fvb::DesktopSettingsStore settings(dataFolder / "nvs");
-    fvb::DesktopPlaceholderNetwork network;
+    fvb::DesktopNetwork network;
     fvb::DesktopClock clock;
     fvb::DesktopLeds leds;
     fvb::DesktopPower power;
@@ -75,6 +83,8 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+
+    if (tryTelegram) return fvb::runTelegramTryOut(dataFolder);
 
     fvb::Hardware hardware{audio, display, files, settings, network, clock, leds, power, input, logger};
     fvb::App app(hardware);

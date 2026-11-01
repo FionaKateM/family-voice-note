@@ -153,10 +153,18 @@ public:
         if (responses.empty()) return HttpResponse{0, "", "no fake response queued"};
         HttpResponse r = responses.front();
         responses.pop_front();
+        if (req.onBodyChunk && r.status != 0) {
+            // Hand the body over in small pieces, as a real download would.
+            for (size_t i = 0; i < r.body.size(); i += chunkSize) {
+                if (!req.onBodyChunk(r.body.data() + i, std::min(chunkSize, r.body.size() - i))) break;
+            }
+            r.body.clear();
+        }
         return r;
     }
 
     bool connected = true;
+    size_t chunkSize = 7;
     std::vector<HttpRequest> requests;
     std::deque<HttpResponse> responses;
 };
