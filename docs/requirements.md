@@ -183,7 +183,7 @@ Contacts can send `/me` at any time to change their name, timezone, sleep hours 
 
 ## 12. Admin settings
 
-Admins send `/settings` to get a menu of buttons. The direct commands also work for anyone who prefers typing: `/contacts`, `/monitors` (or `/monitors off`, `sent`, `received`, `all`), `/admins`, `/quiethours 19:00 07:00` (or `off`), `/timezone France`, `/volume 70`, `/alertvolume 50`, `/maxrecording 360`, `/keepmessages 60`, `/childname Sam`, `/status` and `/trash getlast`. Sent without a value, each opens that part of the menu.
+Admins send `/settings` to get a menu of buttons. The direct commands also work for anyone who prefers typing: `/contacts`, `/monitors` (or `/monitors off`, `sent`, `received`, `all`), `/admins`, `/quiethours 19:00 07:00` (or `off`), `/timezone France`, `/volume 70`, `/alertvolume 50`, `/maxrecording 360`, `/keepmessages 60`, `/childname Sam`, `/status` and `/trash getlast`. Sent without a value, each opens that part of the menu. To keep `/help` short, it only lists `/settings`, `/status` and `/trash`; the others are shortcuts for admins who know them.
 
 - Removing anyone asks for confirmation first. When an admin is removed, the other admins and the person removed are told. Removed contacts and monitors aren't messaged.
 - Voice volume can be set from 10% to 100%, so it can't be turned down to silent by mistake. Alert volume can go down to 0%.
