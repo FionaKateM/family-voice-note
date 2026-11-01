@@ -11,7 +11,20 @@ namespace {
 struct Transfer {
     const HttpRequest* request;
     HttpResponse* response;
+    const std::function<bool()>* cancelCheck;
+    bool cancelled = false;
 };
+
+// curl calls this regularly during a request, even while it's only waiting.
+// Returning non-zero abandons the request.
+int onProgress(void* userData, curl_off_t, curl_off_t, curl_off_t, curl_off_t) {
+    auto* transfer = static_cast<Transfer*>(userData);
+    if (*transfer->cancelCheck && (*transfer->cancelCheck)()) {
+        transfer->cancelled = true;
+        return 1;
+    }
+    return 0;
+}
 
 size_t onData(char* data, size_t size, size_t count, void* userData) {
     auto* transfer = static_cast<Transfer*>(userData);
@@ -48,7 +61,7 @@ HttpResponse DesktopNetwork::request(const HttpRequest& request) {
     curl_easy_reset(curl);
 
     char errorText[CURL_ERROR_SIZE] = {0};
-    Transfer transfer{&request, &response};
+    Transfer transfer{&request, &response, &cancelCheck_};
 
     curl_easy_setopt(curl, CURLOPT_URL, request.url.c_str());
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorText);
@@ -58,6 +71,11 @@ HttpResponse DesktopNetwork::request(const HttpRequest& request) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 15000L);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+    if (cancelCheck_) {
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, onProgress);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &transfer);
+    }
 
     if (request.method == "POST") {
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
@@ -84,6 +102,11 @@ HttpResponse DesktopNetwork::request(const HttpRequest& request) {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
     curl_slist_free_all(headers);
 
+    if (transfer.cancelled) {
+        response.status = 0;
+        response.error = "stopped because the program is closing";
+        return response;
+    }
     if (result != CURLE_OK && !(result == CURLE_WRITE_ERROR && status != 0)) {
         // Didn't get a full answer. curl's messages name the host but not the
         // full address, so they never contain the bot token.

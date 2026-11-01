@@ -45,7 +45,6 @@ It also sorts every incoming message into a kind (voice note, text, photo, photo
 
 ### Left for later tickets
 
-- **Remembering where polling got to (ticket 1.4).** Telegram resends anything the box hasn't confirmed. The client exposes `nextUpdateId()`. The conversation engine should save it after handling each batch and restore it at startup, otherwise the last batch is handled twice after a restart.
 - **Uploads read the whole recording into memory.** At the 360 second maximum an MP3 is around 1.5 MB, which fits in the Core2's 8 MB PSRAM. If storage later gains a way to read a file in pieces, uploads can stream instead.
 - **Retrying** is up to the caller. The client never retries by itself.
 
@@ -64,6 +63,12 @@ These can only be confirmed with a real bot and phone.
 2. **The 👀 reaction appears** on your message on your phone.
 3. **Profile photos**: some people's privacy settings hide their photo from bots. The client reports "no photo" in that case, and setup should fall back to asking them to send one.
 
+## Remembering where polling got to
+
+Done in ticket 1.4 by the conversation engine (`lib/app/src/app/bot/Bot.h`), not the client. After each message is handled, the engine saves the next update ID in internal memory (`tg_offset`), along with the bot's own ID (`tg_bot_id`) so a new bot token starts afresh. It saves after every message rather than every batch, so a restart halfway through a batch doesn't repeat the first half.
+
+Before handling a message it also notes which one it's on and how many times it has tried (`tg_busy`). If the box restarts twice while handling the same message, the third time it's skipped and logged. Without this, a message that crashed the box would crash it again on every restart until Telegram dropped it a day later.
+
 ## The test MP3
 
 `assets/test-audio/test-tone.mp3` is 3 seconds of a 440 Hz tone, made by `scripts/make-test-tone.sh` with ffmpeg:
@@ -77,7 +82,9 @@ To make it again, run `scripts/make-test-tone.sh`. If you change the length, als
 
 ## Trying it on the laptop
 
-The desktop build has a try-out mode for testing against real Telegram before the conversation engine exists.
+The box itself now answers on Telegram (ticket 1.4): run the desktop build without `--try-telegram` once a token is saved. It knows only `/start`, `/help` and `/cancel` so far; the real commands arrive in tickets 1.5 to 1.7.
+
+The try-out mode below is still useful for the voice note, MP3, reaction and photo checks above, which the box can't do yet.
 
 1. Make a test bot with @BotFather in Telegram and copy its token.
 2. Copy `secrets/setup.example.txt` to `secrets/setup.txt` and fill in `BOT_TOKEN`, `CHILD_NAME` and `ADMIN_ID`. (Git ignores this file. The Wi-Fi lines aren't used on the laptop.)
