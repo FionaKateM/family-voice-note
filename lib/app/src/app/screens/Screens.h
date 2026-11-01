@@ -31,6 +31,7 @@ namespace fvb {
 //   Review     Left: listen. Middle: send. Right: delete. Tap the icon at the
 //              top right: re-record.
 //   Confirm    Right (tick): yes. Left or Middle (cross): no.
+//              Review and confirm left alone for 2 minutes: binned, back home.
 //   History    Left/Right: move up/down the list. Middle: play or stop the
 //              highlighted message. Tap a message to play it. Tap the back
 //              arrow or swipe right: home.
@@ -59,6 +60,9 @@ public:
     // How often the home screen looks again at the contacts list, unread counts
     // and who is asleep, in case the bot changed something.
     static constexpr uint32_t kRefreshMs = 2000;
+    // A recording left on review (or its yes/no question) this long with nothing
+    // pressed is binned and the box goes home. Not while it's playing back.
+    static constexpr uint32_t kReviewTimeoutMs = 2 * 60 * 1000;
     static constexpr size_t kHistoryRowsShown = 5;
 
     Screens(Hardware& hardware, Storage& storage) : hw_(hardware), storage_(storage) {}
@@ -142,6 +146,7 @@ private:
     Screen screen_ = Screen::Starting;
     bool dirty_ = true;
     uint64_t screenSince_ = 0;  // millisSinceBoot when this screen was shown
+    uint64_t lastActivity_ = 0;  // last input, screen change or end of playback
     uint64_t lastRefresh_ = 0;
     uint64_t lastFrame_ = 0;
 

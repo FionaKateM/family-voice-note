@@ -41,6 +41,14 @@ void Screens::tick() {
 
     checkPlaybackEnded();
 
+    const bool reviewing =
+        screen_ == Screen::Review || screen_ == Screen::ConfirmDelete || screen_ == Screen::ConfirmRerecord;
+    if (reviewing && playing_ == Playing::Nothing && now - lastActivity_ >= kReviewTimeoutMs) {
+        hw_.log.info("Recording left on review, moved to the bin");
+        binRecording();
+        goHome();
+    }
+
     if ((screen_ == Screen::Home || screen_ == Screen::NoContacts) && now - lastRefresh_ >= kRefreshMs) {
         reloadContacts();
         if (screen_ == Screen::NoContacts && !contacts_.empty()) show(Screen::Home);
@@ -69,6 +77,7 @@ void Screens::tick() {
 }
 
 void Screens::handle(const InputEvent& event) {
+    lastActivity_ = hw_.clock.millisSinceBoot();
     switch (screen_) {
         case Screen::Starting:
             break;  // ignore anything pressed while starting up
@@ -100,6 +109,7 @@ void Screens::handle(const InputEvent& event) {
 void Screens::show(Screen screen) {
     screen_ = screen;
     screenSince_ = hw_.clock.millisSinceBoot();
+    lastActivity_ = screenSince_;
     dirty_ = true;
 }
 
@@ -432,6 +442,7 @@ void Screens::checkPlaybackEnded() {
     // It finished by itself, so it was heard to the end.
     const Playing was = playing_;
     playing_ = Playing::Nothing;
+    lastActivity_ = hw_.clock.millisSinceBoot();
     dirty_ = true;
     if (was != Playing::Message) return;
 

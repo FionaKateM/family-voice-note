@@ -374,6 +374,48 @@ void test_rerecord_asks_first_then_bins_and_records_again() {
     TEST_ASSERT_EQUAL_STRING(paths::kRecording, box.hw.audio.recording.c_str());
 }
 
+void test_review_left_alone_is_binned() {
+    Box box;
+    box.addContact("Granny");
+    box.start();
+    box.record(4000);
+    box.wait(Screens::kReviewTimeoutMs - 1);
+    TEST_ASSERT_TRUE(box.screens.screen() == Screen::Review);
+    box.wait(1);
+    TEST_ASSERT_TRUE(box.screens.screen() == Screen::Home);
+    TEST_ASSERT_EQUAL(1, box.storage.bin.entries().size());
+    TEST_ASSERT_TRUE(box.storage.outbox.empty());
+    TEST_ASSERT_FALSE(box.hw.files.exists(paths::kRecording));
+}
+
+void test_review_timer_restarts_on_input_and_waits_for_playback() {
+    Box box;
+    box.addContact("Granny");
+    box.start();
+    box.record(4000);
+    box.wait(Screens::kReviewTimeoutMs - 1000);
+    box.press(Button::Left);  // listen
+    box.wait(Screens::kReviewTimeoutMs);  // still playing, so it waits
+    TEST_ASSERT_TRUE(box.screens.screen() == Screen::Review);
+    box.finishPlaying();
+    box.wait(Screens::kReviewTimeoutMs - 1);
+    TEST_ASSERT_TRUE(box.screens.screen() == Screen::Review);
+    box.wait(1);
+    TEST_ASSERT_TRUE(box.screens.screen() == Screen::Home);
+    TEST_ASSERT_EQUAL(1, box.storage.bin.entries().size());
+}
+
+void test_question_left_unanswered_is_binned_too() {
+    Box box;
+    box.addContact("Granny");
+    box.start();
+    box.record(4000);
+    box.press(Button::Right);  // delete?
+    box.wait(Screens::kReviewTimeoutMs);
+    TEST_ASSERT_TRUE(box.screens.screen() == Screen::Home);
+    TEST_ASSERT_EQUAL(1, box.storage.bin.entries().size());
+}
+
 // ---- Playing on the home screen ----
 
 void test_tapping_photo_plays_oldest_unread_and_marks_it_heard_at_the_end() {
@@ -595,6 +637,9 @@ int main(int, char**) {
     RUN_TEST(test_delete_yes_moves_recording_to_bin);
     RUN_TEST(test_confirm_by_tapping_tick_and_cross);
     RUN_TEST(test_rerecord_asks_first_then_bins_and_records_again);
+    RUN_TEST(test_review_left_alone_is_binned);
+    RUN_TEST(test_review_timer_restarts_on_input_and_waits_for_playback);
+    RUN_TEST(test_question_left_unanswered_is_binned_too);
     RUN_TEST(test_tapping_photo_plays_oldest_unread_and_marks_it_heard_at_the_end);
     RUN_TEST(test_stopping_early_does_not_mark_heard);
     RUN_TEST(test_changing_contact_stops_playing_without_marking_heard);

@@ -44,6 +44,7 @@
 - Re-record and delete need a confirmation that works without reading. Both move the recording to the bin rather than deleting it.
 - Send saves the recording to the outbox and goes straight back to the home screen. Sending happens in the background.
 - Once sent, the child can't delete a message.
+- If review is left alone for 2 minutes (nothing pressed, nothing playing), the recording goes to the bin and the box returns to the home screen. A parent can still get it back with `/trash getlast`. (Decided in ticket 1.11; tune on the device.)
 
 ### Listening
 
