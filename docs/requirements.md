@@ -119,37 +119,51 @@
 ### Talking to the bot
 
 - The bot only talks in one-to-one chats. Group chats and messages from other bots are ignored.
-- Anyone not on a list gets no reply at all, whatever they send, unless they open a valid invite link. Once they have, they're answered only within their setup conversation until it finishes.
+- Anyone not on a list gets no reply at all, whatever they send, unless they open a valid invite link. Once they have, they're answered only within their setup conversation until it finishes. The exceptions, all for people who have opened one of the box's own invite links:
+  - Someone who stopped their setup with `/cancel` is told to tap their link again, until it runs out.
+  - Someone whose setup was forgotten after 7 days is told, once, to ask for a new link. After that they're ignored like anyone else.
+  - Someone who has finished setup and is waiting for approval is told so.
+  - Someone who taps a link that has already been used by someone else, or has run out, is told to ask for a new one. Made-up links still get no reply.
 - `/start` (without an invite code) says hello and lists what that person can do. `/help` lists the commands their roles allow. Someone with several roles sees everything they can do.
 - If a known person uses a command their roles don't allow, they get a short reply ("Only admins can use /settings."). An unknown command gets "I don't know /x. Send /help to see what I can do."
 - Multi-step conversations (setup, `/me`, menus) carry on after a restart or power cut. Each person has at most one at a time.
 - `/cancel` stops the conversation they're in. Sending another command also ends it and runs the new command.
 - Buttons from a conversation that has finished pop up "This has finished." and do nothing.
-- A conversation left with no reply for 7 days is forgotten. If the clock hasn't been set yet, conversations don't time out.
+- A conversation left with no reply for 7 days is forgotten. If the clock hasn't been set yet, conversations don't time out. If it was invite setup, the person is told to ask for a new link when they next message (see above).
 - If someone loses a role partway through a conversation that needs it (an admin is removed during `/settings`), the conversation is dropped.
 
 ## 10. Invite and setup flows
 
 ### Adding a contact
 
-1. An admin sends `/addcontact`. The bot replies with an invite link (a `t.me/<bot>?start=<code>` deep link) that works once and expires after 48 hours.
+1. An admin sends `/addcontact`. The bot replies with an invite link (a `t.me/<bot>?start=<code>` deep link) that works once and expires after 48 hours. It comes as a separate message ("You're invited to send voice notes to [Child]. Tap this link to get started: ...") so the admin can forward it as it is.
 2. The admin sends the link to the person however they like.
+   - The link belongs to the first person who opens it. Anyone else who taps it afterwards is told it has been used.
+   - Someone who stops partway through can tap the same link again to start over, until it runs out.
+   - Someone who's already a contact can't use a contact link (the link stays free for the person it was meant for).
+   - If the clock hasn't been set yet when the link is made, it doesn't run out by time.
 3. The person taps the link. Telegram opens the bot and presses Start for them.
 4. The bot takes them through setup, using tap buttons wherever possible:
-   - What [child] calls you (e.g. Granny)
-   - Your country and timezone
-   - Your sleep hours (default 9pm to 9am, change if you like)
-   - Your photo: use your Telegram profile picture or send a different one. Photos sent as files are turned down with a prompt to send them as a normal photo. Download the size closest to 320px wide.
+   - What [child] calls you (e.g. Granny). Typed. Up to 30 characters, and not the same as another contact's name.
+   - Your country and timezone. The box's own country and other contacts' countries are offered as buttons first, then "Another country" leads to an A to Z list. Typing the country's name also works. Countries with more than one timezone then ask for the nearest city.
+   - Your sleep hours (default 9pm to 9am). [Keep these] or [Change], which shows hour buttons for bedtime and then waking time.
+   - Your photo: use your Telegram profile picture or send a different one. Photos sent as files are turned down with a prompt to send them as a normal photo. Download the size closest to 320px wide. There's also a [No photo for now] button; they can add one later with `/me`.
    - A notice: "[Child]'s parents may be able to hear all voice notes to and from you." [I understand]
-5. All admins get "Granny has finished setting up. Approve? [Yes] [No]".
+5. All admins get "Granny has finished setting up. Approve? [Yes] [No]", with their Telegram name and @username (so admins can check it's the right person), timezone, sleep hours and whether they sent a photo.
+   - The first admin to answer decides. Every admin's message then changes to say who approved or turned them down, so nobody answers twice.
+   - The photo is downloaded once they're approved. If that fails, they're still added, and the approving admin is told the person can send it again with `/me`.
+   - If turned down, the person gets "Sorry, [Child]'s parents didn't approve this." and is treated as a stranger again.
 6. Once approved, Granny appears on the device and gets "You're all set. Send [Child] a voice note any time."
 
-Contacts can send `/me` at any time to change their name, timezone, sleep hours or photo.
+Contacts can send `/me` at any time to change their name, timezone, sleep hours or photo. It shows their current details and a button menu; each change is saved straight away, with no approval needed.
 
 ### Adding a monitor or an admin
 
 - `/addmonitor` and `/addadmin` work the same way: an invite link, a short setup, then approval by an existing admin.
-- Monitors are told what they'll receive. Admins are told what they can do.
+- Monitors are told what they'll receive. Admins are told what they can do. Both then tap [Join] or [No thanks].
+- Their name on the box is their Telegram first name.
+- When a new admin is approved, every admin's approval message changes to "[Name] is now an admin, approved by [Admin]."
+- One person can hold several roles: an existing contact can accept a monitor invite, for example.
 
 ### Removing people
 

@@ -663,8 +663,8 @@ void test_store_removes_expired() {
     s.id = 3; s.userId = 3; s.lastActive = 950;
     conversations.save(s);
 
-    TEST_ASSERT_EQUAL(0, conversations.removeExpired(0, 500));  // clock not set: nothing
-    TEST_ASSERT_EQUAL(1, conversations.removeExpired(1000, 500));
+    TEST_ASSERT_EQUAL(0, conversations.removeExpired(0, 500).size());  // clock not set: nothing
+    TEST_ASSERT_EQUAL(1, conversations.removeExpired(1000, 500).size());
     TEST_ASSERT_EQUAL(2, conversations.all().size());
 }
 

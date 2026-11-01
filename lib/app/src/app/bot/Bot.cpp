@@ -228,8 +228,9 @@ void Bot::handle(const std::vector<Update>& updates) {
 
     if (!updates.empty()) {
         const int64_t now = clock_.isTimeSet() ? clock_.unixTime() : 0;
-        const size_t expired = conversations_.removeExpired(now, kConversationTimeoutSeconds);
-        if (expired > 0) log_.info(std::to_string(expired) + " unfinished conversation(s) timed out");
+        const auto expired = conversations_.removeExpired(now, kConversationTimeoutSeconds);
+        if (!expired.empty()) log_.info(std::to_string(expired.size()) + " unfinished conversation(s) timed out");
+        for (const auto& state : expired) timedOut(state, now);
     }
 }
 
@@ -260,6 +261,8 @@ void Bot::handleMessage(const Message& message) {
     ctx.sender_.userId = message.from.id;
     ctx.sender_.chatId = message.chatId;
     ctx.sender_.firstName = message.from.firstName;
+    ctx.sender_.lastName = message.from.lastName;
+    ctx.sender_.username = message.from.username;
     ctx.sender_.roles = Roles::of(storage_.people, message.from.id);
     loadConversation(ctx.sender_);
 
@@ -267,8 +270,10 @@ void Bot::handleMessage(const Message& message) {
     const bool isCommand = message.kind == MessageKind::Text && telegram::parseCommand(message.text, command, argument);
 
     if (!ctx.sender_.roles.isKnown() && !hasCurrent_) {
-        // A stranger. Only a valid invite link gets a response; everything else is ignored.
-        if (isCommand && command == "start" && !argument.empty() && startLink_) startLink_(ctx, argument);
+        // A stranger. Only a valid invite link gets a response, or someone the
+        // stranger handler knows from an earlier invite; everything else is ignored.
+        if (isCommand && command == "start" && !argument.empty() && startLink_ && startLink_(ctx, argument)) return;
+        if (onStranger_) onStranger_(ctx);
         return;
     }
 
@@ -338,14 +343,21 @@ void Bot::handleButton(const CallbackQuery& query) {
     ctx.sender_.userId = query.from.id;
     ctx.sender_.chatId = query.chatId;
     ctx.sender_.firstName = query.from.firstName;
+    ctx.sender_.lastName = query.from.lastName;
+    ctx.sender_.username = query.from.username;
     ctx.sender_.roles = Roles::of(storage_.people, query.from.id);
     ctx.buttonMessageId_ = query.messageId;
     loadConversation(ctx.sender_);
 
     const Roles roles = ctx.sender_.roles;
     // Strangers are ignored completely, not even an answer to the press,
-    // unless they're partway through an invite.
-    if (!roles.isKnown() && !hasCurrent_) return;
+    // unless they're partway through an invite or the stranger handler knows them.
+    if (!roles.isKnown() && !hasCurrent_) {
+        if (onStranger_ && onStranger_(ctx) && !client_.answerCallbackQuery(query.id, kFinished)) {
+            warnTelegram("Couldn't answer a button press");
+        }
+        return;
+    }
 
     if (!query.data.empty() && query.data[0] == kConversationButton) {
         handleConversationButton(ctx, query.data);
@@ -395,6 +407,9 @@ void Bot::loadConversation(const Sender& sender) {
     ConversationType* type = typeNamed(state.type);
     if (now > 0 && state.lastActive > 0 && now - state.lastActive > kConversationTimeoutSeconds) {
         log_.info("An unfinished conversation timed out");
+        conversations_.remove(sender.userId);
+        timedOut(state, now);
+        return;
     } else if (!type) {
         log_.warning("Dropped a conversation of a kind this version doesn't know: " + state.type);
     } else if (!type->allows(sender.roles)) {
@@ -405,6 +420,10 @@ void Bot::loadConversation(const Sender& sender) {
         return;
     }
     conversations_.remove(sender.userId);
+}
+
+void Bot::timedOut(const ConversationState& state, int64_t now) {
+    if (ConversationType* type = typeNamed(state.type)) type->onTimedOut(state, now);
 }
 
 bool Bot::startConversation(Context& ctx, const std::string& typeName,
