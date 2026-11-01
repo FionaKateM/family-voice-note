@@ -11,6 +11,10 @@
 //                                              (default 2)
 //   .pio/build/desktop/program --try-telegram  run a test bot against real Telegram
 //                                              instead of the box (see docs/telegram.md)
+//   .pio/build/desktop/program --wifi <name>   pretend to be on this Wi-Fi network (default
+//                                              "Laptop"). A name the box hasn't seen before
+//                                              makes it check which country it's in, as it
+//                                              does on the device after moving
 //
 // The box's screen opens in a window. Keys 1, 2 and 3 (or the left, down and
 // right arrows) are the three buttons. Click the screen to tap it, drag across
@@ -37,6 +41,9 @@
 #include "app/App.h"
 #include "app/bot/Bot.h"
 #include "app/invites/InviteFlows.h"
+#include "app/settings/AdminSettings.h"
+#include "app/settings/MovedCountry.h"
+#include "app/time/Location.h"
 #include "platform/desktop/DesktopAudio.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
@@ -55,6 +62,7 @@ int main(int argc, char** argv) {
     std::filesystem::path setupFile;
     bool tryTelegram = false;
     int windowScale = 2;
+    std::string wifiName = "Laptop";
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
@@ -63,6 +71,8 @@ int main(int argc, char** argv) {
             maxTicks = std::atol(argv[++i]);
         } else if (std::strcmp(argv[i], "--setup") == 0 && i + 1 < argc) {
             setupFile = argv[++i];
+        } else if (std::strcmp(argv[i], "--wifi") == 0 && i + 1 < argc) {
+            wifiName = argv[++i];
         } else if (std::strcmp(argv[i], "--try-telegram") == 0) {
             tryTelegram = true;
         } else if (std::strcmp(argv[i], "--scale") == 0 && i + 1 < argc) {
@@ -70,7 +80,7 @@ int main(int argc, char** argv) {
             if (windowScale < 1 || windowScale > 6) windowScale = 2;
         } else {
             std::fprintf(stderr,
-                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--try-telegram]\n",
+                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--wifi <name>] [--try-telegram]\n",
                          argv[0]);
             return 2;
         }
@@ -81,6 +91,7 @@ int main(int argc, char** argv) {
     fvb::DesktopFileStorage files(dataFolder / "sdcard");
     fvb::DesktopSettingsStore settings(dataFolder / "nvs");
     fvb::DesktopNetwork network;
+    network.setWifiName(wifiName);
     fvb::DesktopClock clock;
     fvb::DesktopLeds leds;
     fvb::DesktopPower power;
@@ -124,6 +135,9 @@ int main(int argc, char** argv) {
     fvb::Bot bot(telegramClient, app.storage(), settings, clock, logger);
     fvb::DesktopRandom random;
     fvb::InviteFlows inviteFlows(bot, app.storage(), settings, random);
+    fvb::AdminSettings adminSettings(bot, app.storage(), inviteFlows, files, network, power);
+    fvb::MovedCountry movedCountry(bot, telegramClient, app.storage(), settings, logger);
+    bool locationChecked = false;
 
     // Ctrl+C abandons a request only while connecting or waiting for new
     // messages. A reply that's being sent is let finish, so a message is never
@@ -142,6 +156,22 @@ int main(int argc, char** argv) {
                 } else if (bot.state() == fvb::Bot::State::Connected) {
                     std::lock_guard<std::mutex> lock(boxLock);
                     bot.resume();
+                    waitMs = 0;
+                } else if (!locationChecked) {
+                    // Once connected: if this is a different Wi-Fi network from
+                    // last time, check whether the box has moved country. Asking
+                    // the location service is slow, so it's done without the lock.
+                    locationChecked = true;
+                    bool check;
+                    {
+                        std::lock_guard<std::mutex> lock(boxLock);
+                        check = movedCountry.shouldCheck(network.wifiName());
+                    }
+                    if (check) {
+                        const fvb::LocationGuess guess = fvb::LocationService(network).guess();
+                        std::lock_guard<std::mutex> lock(boxLock);
+                        movedCountry.check(network.wifiName(), guess);
+                    }
                     waitMs = 0;
                 } else {
                     std::vector<fvb::telegram::Update> updates;

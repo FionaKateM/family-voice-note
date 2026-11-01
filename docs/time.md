@@ -24,4 +24,10 @@ Only today's rules are kept, not history. Old names (for example `Europe/Kiev`) 
 
 ## Where the box is
 
-`LocationService` asks ipinfo.io (or ipapi.co if that fails) where the box's internet connection is. This happens once, during setup, so the box can suggest its timezone. Asking the admin to confirm belongs to the setup conversation (ticket 1.5). If the box later moves country, a parent changes the timezone in `/settings`; the box doesn't check again by itself.
+`LocationService` asks ipinfo.io (or ipapi.co if that fails) where the box's internet connection is. This happens during setup, so the box can suggest its timezone (ticket 1.8), and again whenever the box joins a different Wi-Fi network from last time.
+
+## Moving country
+
+`MovedCountry` (in `lib/app/src/app/settings/`) remembers the last Wi-Fi network it checked on. On a new network, once the box's timezone has been set, it asks `LocationService` where it is. If that country isn't the one the box's timezone is in, every admin is asked "Looks like the box is now in France. Switch to France time? [Yes] [No]". No is remembered, so it never asks about that country again. The unanswered question is saved, so it still works after a restart.
+
+On the laptop there's no real Wi-Fi network, so the desktop build pretends to be on one called "Laptop". Start it with `--wifi <another name>` to make it check again, as if it had moved. The check uses the laptop's real internet connection, so to see the question, first set the box's timezone in `/settings` to a different country from the one you're in.
