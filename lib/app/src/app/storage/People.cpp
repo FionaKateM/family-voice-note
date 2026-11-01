@@ -11,6 +11,7 @@ constexpr const char* kAdmins = "admins";
 constexpr const char* kMonitors = "monitors";
 constexpr const char* kContacts = "contacts";         // "1,2,5"
 constexpr const char* kNextContact = "next_contact";  // never goes down, so numbers aren't reused
+constexpr const char* kRemoved = "removed";           // "<telegram id>\t<last told>" lines, oldest first
 
 std::string contactKey(uint32_t number) { return "ct" + std::to_string(number); }
 
@@ -182,6 +183,7 @@ uint32_t People::addContact(Contact contact) {
     if (!store_.setString(contactKey(contact.number), encodeContact(contact))) return 0;
     numbers.push_back(contact.number);
     if (!saveContactNumbers(numbers)) return 0;
+    forgetRemoved(contact.telegramId);
     return contact.number;
 }
 
@@ -197,8 +199,80 @@ bool People::removeContact(uint32_t number) {
     if (it == numbers.end()) return false;
     numbers.erase(it);
     if (!saveContactNumbers(numbers)) return false;
+    Contact c;
+    if (decodeContact(store_.getString(contactKey(number)), c)) rememberRemoved(c.telegramId);
     store_.remove(contactKey(number));
     return true;
+}
+
+// ---- Removed contacts ----
+
+std::vector<People::Removed> People::loadRemoved() const {
+    std::vector<Removed> removed;
+    for (const auto& line : text::splitLines(store_.getString(kRemoved))) {
+        const auto f = text::splitFields(line);
+        Removed r;
+        if (f.empty() || !text::parseInt(f[0], r.telegramId) || r.telegramId == 0) continue;
+        if (f.size() > 1) text::parseInt(f[1], r.lastTold);
+        removed.push_back(r);
+    }
+    return removed;
+}
+
+bool People::saveRemoved(const std::vector<Removed>& removed) {
+    if (removed.empty()) return store_.remove(kRemoved);
+    std::string out;
+    for (const auto& r : removed) {
+        out += text::joinFields({std::to_string(r.telegramId), std::to_string(r.lastTold)}) + "\n";
+    }
+    return store_.setString(kRemoved, out);
+}
+
+void People::rememberRemoved(int64_t telegramId) {
+    if (telegramId == 0) return;
+    auto removed = loadRemoved();
+    removed.erase(std::remove_if(removed.begin(), removed.end(),
+                                 [&](const Removed& r) { return r.telegramId == telegramId; }),
+                  removed.end());
+    while (removed.size() >= kMaxRemoved) removed.erase(removed.begin());
+    removed.push_back(Removed{telegramId, 0});
+    // If this doesn't save, they're treated as a stranger: no reply at all.
+    saveRemoved(removed);
+}
+
+void People::forgetRemoved(int64_t telegramId) {
+    auto removed = loadRemoved();
+    const auto before = removed.size();
+    removed.erase(std::remove_if(removed.begin(), removed.end(),
+                                 [&](const Removed& r) { return r.telegramId == telegramId; }),
+                  removed.end());
+    if (removed.size() != before) saveRemoved(removed);
+}
+
+bool People::wasRemoved(int64_t telegramId) const {
+    for (const auto& r : loadRemoved()) {
+        if (r.telegramId == telegramId) return true;
+    }
+    return false;
+}
+
+bool People::shouldTellRemoved(int64_t telegramId, int64_t now) {
+    auto removed = loadRemoved();
+    for (auto& r : removed) {
+        if (r.telegramId != telegramId) continue;
+        if (now <= 0) {
+            // No clock, so no way to count a day. Tell them once, then wait for the clock.
+            if (r.lastTold != 0) return false;
+            r.lastTold = -1;
+        } else {
+            // A clock that went backwards counts as long enough.
+            if (r.lastTold > 0 && now >= r.lastTold && now - r.lastTold < kRemovedReplyGapSeconds) return false;
+            r.lastTold = now;
+        }
+        // Only reply if this was saved, so a failing store can't cause a reply every time.
+        return saveRemoved(removed);
+    }
+    return false;
 }
 
 }  // namespace fvb

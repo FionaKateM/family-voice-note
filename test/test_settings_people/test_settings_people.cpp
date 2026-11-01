@@ -265,6 +265,64 @@ void test_remove_contact() {
     TEST_ASSERT_FALSE(p.removeContact(n));
 }
 
+void test_removed_contacts_are_remembered() {
+    FakeSettingsStore store;
+    People p(store);
+    const uint32_t n = p.addContact(makeContact(500, "Granny"));
+    TEST_ASSERT_FALSE(p.wasRemoved(500));
+    TEST_ASSERT_TRUE(p.removeContact(n));
+    TEST_ASSERT_TRUE(p.wasRemoved(500));
+    TEST_ASSERT_FALSE(p.wasRemoved(501));
+    TEST_ASSERT_FALSE(p.shouldTellRemoved(501, 1000));  // a stranger
+
+    // Approved as a contact again: forgotten.
+    TEST_ASSERT_TRUE(p.addContact(makeContact(500, "Granny")) != 0);
+    TEST_ASSERT_FALSE(p.wasRemoved(500));
+    TEST_ASSERT_FALSE(store.has("removed"));
+}
+
+void test_removed_reply_is_at_most_once_a_day() {
+    FakeSettingsStore store;
+    People p(store);
+    p.removeContact(p.addContact(makeContact(500, "Granny")));
+    const int64_t day = People::kRemovedReplyGapSeconds;
+    TEST_ASSERT_TRUE(p.shouldTellRemoved(500, 1000000));
+    TEST_ASSERT_FALSE(p.shouldTellRemoved(500, 1000000));
+    TEST_ASSERT_FALSE(p.shouldTellRemoved(500, 1000000 + day - 1));
+    TEST_ASSERT_TRUE(p.shouldTellRemoved(500, 1000000 + day));
+    // A clock that jumped backwards doesn't keep them waiting.
+    TEST_ASSERT_TRUE(p.shouldTellRemoved(500, 5000));
+}
+
+void test_removed_reply_without_a_clock() {
+    FakeSettingsStore store;
+    People p(store);
+    p.removeContact(p.addContact(makeContact(500, "Granny")));
+    TEST_ASSERT_TRUE(p.shouldTellRemoved(500, 0));   // told once
+    TEST_ASSERT_FALSE(p.shouldTellRemoved(500, 0));  // and not again until the clock is set
+    TEST_ASSERT_TRUE(p.shouldTellRemoved(500, 1000000));
+    TEST_ASSERT_FALSE(p.shouldTellRemoved(500, 0));
+}
+
+void test_removed_list_is_capped_and_forgets_the_oldest() {
+    FakeSettingsStore store;
+    People p(store);
+    for (size_t i = 0; i <= People::kMaxRemoved; ++i) {
+        p.removeContact(p.addContact(makeContact(1000 + static_cast<int64_t>(i), "Person " + std::to_string(i))));
+    }
+    TEST_ASSERT_FALSE(p.wasRemoved(1000));  // the oldest
+    TEST_ASSERT_TRUE(p.wasRemoved(1001));
+    TEST_ASSERT_TRUE(p.wasRemoved(1000 + static_cast<int64_t>(People::kMaxRemoved)));
+}
+
+void test_removed_reply_is_not_sent_if_it_cannot_be_saved() {
+    FakeSettingsStore store;
+    People p(store);
+    p.removeContact(p.addContact(makeContact(500, "Granny")));
+    store.failWrites = true;
+    TEST_ASSERT_FALSE(p.shouldTellRemoved(500, 1000000));
+}
+
 void test_contact_list_ignores_missing_records() {
     // As if the power went between saving the list and saving the contact.
     FakeSettingsStore store;
@@ -313,6 +371,11 @@ int main(int, char**) {
     RUN_TEST(test_same_person_cannot_be_added_twice);
     RUN_TEST(test_find_and_update_contact);
     RUN_TEST(test_remove_contact);
+    RUN_TEST(test_removed_contacts_are_remembered);
+    RUN_TEST(test_removed_reply_is_at_most_once_a_day);
+    RUN_TEST(test_removed_reply_without_a_clock);
+    RUN_TEST(test_removed_list_is_capped_and_forgets_the_oldest);
+    RUN_TEST(test_removed_reply_is_not_sent_if_it_cannot_be_saved);
     RUN_TEST(test_contact_list_ignores_missing_records);
     RUN_TEST(test_contact_list_is_capped);
     RUN_TEST(test_failed_save_is_reported);

@@ -25,7 +25,9 @@ namespace fvb {
 //
 // Someone whose setup was stopped, or forgotten after a week with no reply,
 // isn't ignored if they come back: they're told to tap their link again or to
-// ask for a new one. Someone waiting for approval is told so.
+// ask for a new one. Someone waiting for approval is told so. A contact an
+// admin removed is told "This box isn't taking voice notes from you at the
+// moment", at most once a day.
 //
 // Create one after the Bot; it registers its commands, buttons and
 // conversations with it. Both must stay alive together.
