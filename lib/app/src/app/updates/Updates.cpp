@@ -6,6 +6,7 @@
 
 #include "app/Version.h"
 #include "app/storage/TextRecord.h"
+#include "app/time/TimeChecks.h"
 #include "app/updates/Sha256.h"
 
 namespace fvb {
@@ -16,7 +17,7 @@ using telegram::InlineKeyboard;
 namespace {
 
 // NVS keys. 15 characters at most.
-constexpr const char* kLastCheck = "upd_checked";   // when the daily check last worked (seconds since 1970)
+constexpr const char* kLastCheckDay = "upd_day";  // the box's local date the daily check last worked, as days since 1970
 constexpr const char* kToldAbout = "upd_told";      // the version the daily check last told admins about
 constexpr const char* kInstalling = "upd_installing";  // see Updates::finish
 
@@ -119,19 +120,21 @@ Updates::Updates(Bot& bot, telegram::TelegramClient& client, Storage& storage, S
       installer_(installer), where_(std::move(where)) {
     // Not listed in /help, which only lists /settings, /status and /trash. The
     // daily message tells admins about /update when there's something to install.
-    bot.addCommand("update", Roles::kAdmin, "", [this](Context& ctx, const std::string&) {
-        if (installRequested_ || installing_) {
-            ctx.reply("An update is already being installed.");
-            return;
-        }
-        const int64_t who = ctx.sender().chatId;
-        if (std::find(waitingForCheck_.begin(), waitingForCheck_.end(), who) == waitingForCheck_.end()) {
-            waitingForCheck_.push_back(who);
-        }
-        // The check itself happens in run(), so the box isn't held up waiting
-        // for GitHub. The answer follows in a second or two.
-    });
+    bot.addCommand("update", Roles::kAdmin, "", [this](Context& ctx, const std::string&) { ask(ctx); });
     bot.addButtons(kPrefix, Roles::kAdmin, [this](Context& ctx, const std::string& data) { onButton(ctx, data); });
+}
+
+void Updates::ask(Context& ctx) {
+    if (installRequested_ || installing_) {
+        ctx.reply("An update is already being installed.");
+        return;
+    }
+    const int64_t who = ctx.sender().chatId;
+    if (std::find(waitingForCheck_.begin(), waitingForCheck_.end(), who) == waitingForCheck_.end()) {
+        waitingForCheck_.push_back(who);
+    }
+    // The check itself happens in run(), so the box isn't held up waiting for
+    // GitHub. The answer follows in a second or two.
 }
 
 // ---------------------------------------------------------------------------
@@ -178,7 +181,10 @@ void Updates::finish(const Task& task, const Result& result) {
             }
             return;
         }
-        if (clock_.isTimeSet()) store_.setInt(kLastCheck, clock_.unixTime());
+        LocalTime local;
+        if (daily && deviceLocalTime(storage_.settings, clock_, local)) {
+            store_.setInt(kLastCheckDay, civil::daysFromDate(local.year, local.month, local.day));
+        }
 
         if (!result.newer) {
             for (int64_t admin : task.askedBy) {
@@ -260,11 +266,11 @@ void Updates::afterStart() {
 // Checking and downloading
 
 bool Updates::dailyCheckDue() const {
-    if (!clock_.isTimeSet()) return false;
+    LocalTime local;
+    if (!deviceLocalTime(storage_.settings, clock_, local)) return false;
+    if (!isWithinDailyHours(kCheckFrom, kCheckUntil, local.minuteOfDay())) return false;
     if (clock_.millisSinceBoot() < retryAtMs_) return false;
-    const int64_t last = store_.getInt(kLastCheck, 0);
-    const int64_t now = clock_.unixTime();
-    return last == 0 || now < last || now - last >= kCheckEverySeconds;
+    return store_.getInt(kLastCheckDay, -1) != civil::daysFromDate(local.year, local.month, local.day);
 }
 
 std::string Updates::toldAbout() const { return store_.getString(kToldAbout); }

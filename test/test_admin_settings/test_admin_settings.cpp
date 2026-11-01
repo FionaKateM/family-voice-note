@@ -590,6 +590,21 @@ void test_last_deleted_from_the_menu() {
     TEST_ASSERT_EQUAL(1, sent("sendVoice").size());
 }
 
+void test_update_button_in_the_menu() {
+    // Only shown once something handles it (Updates, in the real box).
+    say(kAdmin, "/settings");
+    TEST_ASSERT_FALSE(hasButton("Update"));
+
+    long long askedBy = 0;
+    settings->setUpdateHandler([&askedBy](Context& ctx) { askedBy = ctx.sender().userId; });
+    say(kAdmin, "/settings");
+    TEST_ASSERT_TRUE(hasButton("Update"));
+    tap(kAdmin, "Update");
+    TEST_ASSERT_EQUAL(kAdmin, askedBy);
+    ConversationState left;
+    TEST_ASSERT_FALSE(bot->conversations().find(kAdmin, left));  // the menu closed
+}
+
 // ---------------------------------------------------------------------------
 // The moved-country question
 
@@ -757,6 +772,7 @@ int main() {
     RUN_TEST(test_changing_the_time_zone_from_the_menu);
     RUN_TEST(test_timezone_command_with_a_country_with_several_zones);
     RUN_TEST(test_menu_carries_on_after_a_restart);
+    RUN_TEST(test_update_button_in_the_menu);
     RUN_TEST(test_removing_a_contact_needs_confirming);
     RUN_TEST(test_removing_a_monitor);
     RUN_TEST(test_removing_an_admin_tells_everyone);

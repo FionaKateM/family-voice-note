@@ -188,6 +188,7 @@ int main(int argc, char** argv) {
     fvb::Updates updates(bot, telegramClient, app.storage(), settings, clock, logger, network, installer,
                          releaseFolder.empty() ? fvb::ReleaseLocation::github()
                                                : fvb::ReleaseLocation::folder(releaseFolder));
+    adminSettings.setUpdateHandler([&updates](fvb::Context& ctx) { updates.ask(ctx); });
     bool updateReported = false;
 
     // Sending (the outbox, downloads, 👀 reactions, monitor copies) has its own

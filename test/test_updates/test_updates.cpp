@@ -25,7 +25,7 @@ using namespace fvb::telegram;
 static const long long kAdmin = 1001;
 static const long long kOtherAdmin = 1002;
 static const long long kContact = 2002;
-static const int64_t kNow = 1790000000;  // Monday 21 September 2026, 14:13 UTC
+static const int64_t kNow = 1790000000;  // Monday 21 September 2026, 14:13 UTC (15:13 in London)
 
 static const std::string kLatestUrl =
     "https://github.com/FionaKateM/family-voice-note/releases/latest/download/firmware.json";
@@ -205,6 +205,7 @@ void setUp() {
     hw->clock.unixSeconds = kNow;
     storage.reset(new Storage(hw->files, hw->settings));
     storage->settings.setChildName("Child");
+    storage->settings.setTimezone("Europe/London");
     storage->people.addAdmin(Person{kAdmin, "Parent"});
     storage->people.addAdmin(Person{kOtherAdmin, "Alex"});
     Contact granny;
@@ -544,56 +545,95 @@ static void test_second_yes_while_installing() {
 }
 
 // ---------------------------------------------------------------------------
-// The daily check
+// The daily check, at 6pm in the box's time zone (London in these tests)
 
-static void test_daily_check_tells_admins_once() {
+// Sets the clock to hh:mm in London, `days` days after 21 September 2026.
+// London is on BST (UTC+1) all through these dates.
+static void londonTime(int days, int hour, int minute = 0) {
+    const int64_t midnightUtc = 1789948800;  // 21 September 2026, 00:00 UTC
+    hw->clock.unixSeconds = midnightUtc + days * 86400 + (hour - 1) * 3600 + minute * 60;
+}
+
+static void test_daily_check_waits_for_6pm() {
     publish("9.1");
+    londonTime(0, 17, 59);
+    TEST_ASSERT_FALSE(updates->dailyCheckDue());
+    TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::None);
+    londonTime(0, 18, 0);
     TEST_ASSERT_TRUE(updates->dailyCheckDue());
     TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::Check);
     TEST_ASSERT_EQUAL_STRING("Version 9.1 is available. Send /update to install.", net->to(kAdmin)[0].text.c_str());
     TEST_ASSERT_EQUAL_STRING("Version 9.1 is available. Send /update to install.",
                              net->to(kOtherAdmin)[0].text.c_str());
     TEST_ASSERT_EQUAL(0, net->to(kContact).size());
+}
 
-    // Not due again for a day.
+static void test_daily_check_follows_the_box_time_zone() {
+    // 18:00 in Tokyo is 10:00 in London.
+    storage->settings.setTimezone("Asia/Tokyo");
+    londonTime(0, 10, 0);
+    TEST_ASSERT_TRUE(updates->dailyCheckDue());
+    londonTime(0, 18, 0);  // 02:00 in Tokyo
     TEST_ASSERT_FALSE(updates->dailyCheckDue());
-    hw->clock.unixSeconds += Updates::kCheckEverySeconds - 1;
-    TEST_ASSERT_FALSE(updates->dailyCheckDue());
-    hw->clock.unixSeconds += 1;
+}
+
+static void test_daily_check_once_a_day() {
+    publish("9.1");
+    londonTime(0, 18, 0);
+    runUpdates();
+    londonTime(0, 21, 0);
+    TEST_ASSERT_FALSE(updates->dailyCheckDue());  // already done today
+    londonTime(1, 12, 0);
+    TEST_ASSERT_FALSE(updates->dailyCheckDue());  // tomorrow, but not 6pm yet
+    londonTime(1, 18, 0);
     TEST_ASSERT_TRUE(updates->dailyCheckDue());
 
-    // The next day, the same version isn't announced again...
+    // The same version isn't announced again...
     runUpdates();
     TEST_ASSERT_EQUAL(1, net->to(kAdmin).size());
 
     // ...but a newer one is.
     publish("9.2");
-    hw->clock.unixSeconds += Updates::kCheckEverySeconds;
+    londonTime(2, 18, 30);
     runUpdates();
     TEST_ASSERT_EQUAL(2, net->to(kAdmin).size());
     TEST_ASSERT_EQUAL_STRING("Version 9.2 is available. Send /update to install.", net->to(kAdmin)[1].text.c_str());
 }
 
+static void test_daily_check_catches_up_until_10pm() {
+    // The box was off at 6pm. Switched on at 9:59pm, it still checks...
+    londonTime(0, 21, 59);
+    TEST_ASSERT_TRUE(updates->dailyCheckDue());
+    // ...but not from 10pm, or overnight.
+    londonTime(0, 22, 0);
+    TEST_ASSERT_FALSE(updates->dailyCheckDue());
+    londonTime(1, 3, 0);
+    TEST_ASSERT_FALSE(updates->dailyCheckDue());
+}
+
 static void test_daily_check_survives_restart() {
     publish("9.1");
+    londonTime(0, 18, 0);
     runUpdates();
     restart();
     TEST_ASSERT_FALSE(updates->dailyCheckDue());
-    hw->clock.unixSeconds += Updates::kCheckEverySeconds;
+    londonTime(1, 18, 0);
     restart();
     runUpdates();
     TEST_ASSERT_EQUAL(1, net->to(kAdmin).size());  // still only told once
 }
 
 static void test_daily_check_says_nothing_when_up_to_date() {
+    londonTime(0, 18, 0);
     TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::Check);  // no releases
     publish(kFirmwareVersion);
-    hw->clock.unixSeconds += Updates::kCheckEverySeconds;
+    londonTime(1, 18, 0);
     TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::Check);
     TEST_ASSERT_EQUAL(0, net->sent.size());
 }
 
 static void test_daily_check_waits_after_failure() {
+    londonTime(0, 18, 0);
     net->webDown = true;
     TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::Check);
     TEST_ASSERT_EQUAL(0, net->sent.size());  // nobody's bothered
@@ -604,23 +644,32 @@ static void test_daily_check_waits_after_failure() {
     net->webDown = false;
     publish("9.1");
     hw->clock.bootMs += Updates::kRetryAfterFailureMs;
+    londonTime(0, 19, 0);
     TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::Check);
     TEST_ASSERT_EQUAL(1, net->to(kAdmin).size());
 }
 
-static void test_daily_check_needs_the_clock() {
+static void test_daily_check_needs_the_clock_and_time_zone() {
+    londonTime(0, 18, 0);
     hw->clock.timeSet = false;
     TEST_ASSERT_FALSE(updates->dailyCheckDue());
     TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::None);
+
+    hw->clock.timeSet = true;
+    hw->settings.values.clear();  // nothing set up yet, including the time zone
+    restart();
+    TEST_ASSERT_FALSE(updates->dailyCheckDue());
 }
 
 static void test_version_found_by_update_isnt_announced_again() {
     publish("9.1");
     say(kAdmin, "/update");
-    runUpdates();  // the admin's check counts as the day's check too
-    TEST_ASSERT_EQUAL_STRING("9.1", updates->toldAbout().c_str());
-    hw->clock.unixSeconds += Updates::kCheckEverySeconds;
     runUpdates();
+    TEST_ASSERT_EQUAL_STRING("9.1", updates->toldAbout().c_str());
+    // An admin's /update doesn't count as the day's check, but the 6pm check
+    // doesn't announce what they already know about.
+    londonTime(0, 18, 0);
+    TEST_ASSERT_TRUE(runUpdates() == Updates::Task::Kind::Check);
     TEST_ASSERT_EQUAL(1, net->to(kAdmin).size());
     TEST_ASSERT_EQUAL(0, net->to(kOtherAdmin).size());
 }
@@ -649,11 +698,14 @@ int main(int, char**) {
     RUN_TEST(test_installer_refusing);
     RUN_TEST(test_old_buttons_expire);
     RUN_TEST(test_second_yes_while_installing);
-    RUN_TEST(test_daily_check_tells_admins_once);
+    RUN_TEST(test_daily_check_waits_for_6pm);
+    RUN_TEST(test_daily_check_follows_the_box_time_zone);
+    RUN_TEST(test_daily_check_once_a_day);
+    RUN_TEST(test_daily_check_catches_up_until_10pm);
     RUN_TEST(test_daily_check_survives_restart);
     RUN_TEST(test_daily_check_says_nothing_when_up_to_date);
     RUN_TEST(test_daily_check_waits_after_failure);
-    RUN_TEST(test_daily_check_needs_the_clock);
+    RUN_TEST(test_daily_check_needs_the_clock_and_time_zone);
     RUN_TEST(test_version_found_by_update_isnt_announced_again);
     return UNITY_END();
 }

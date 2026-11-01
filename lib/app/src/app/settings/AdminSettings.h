@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -31,6 +32,9 @@ namespace fvb {
 //   /status                  battery, Wi-Fi, storage, firmware, messages waiting
 //   /trash getlast           sends the most recently deleted recording
 //
+// The menu also has an Update button, which does the same as /update (see
+// Updates). It only appears once setUpdateHandler has been called.
+//
 // Only /settings, /status and /trash appear in /help; the others are typing
 // shortcuts into the menu, listed in section 12 of the requirements.
 //
@@ -52,6 +56,10 @@ public:
 
     // What /status says.
     std::string statusText() const;
+
+    // What the menu's Update button does. Without one, the button isn't shown.
+    using UpdateHandler = std::function<void(Context&)>;
+    void setUpdateHandler(UpdateHandler handler) { onUpdate_ = std::move(handler); }
 
 private:
     class Menu;
@@ -79,6 +87,7 @@ private:
     Network& network_;
     Power& power_;
     std::unique_ptr<Menu> menu_;
+    UpdateHandler onUpdate_;
 };
 
 // Reads a time of day typed by a person: "19:00", "7:30", "7pm", "7.30am",

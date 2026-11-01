@@ -43,10 +43,14 @@ struct ReleaseLocation {
 
 // Software updates (section 13 of the requirements).
 //
-//  - Once a day the box checks for a new version. The first time it sees one,
-//    every admin gets "Version 1.3 is available. Send /update to install."
-//  - /update (admins only) checks straight away and replies with the version,
-//    the note on what's new, and Yes and No buttons, or "Already up to date".
+//  - Once a day, at 6pm in the box's time zone, the box checks for a new
+//    version. The first time it sees one, every admin gets "Version 1.3 is
+//    available. Send /update to install." If the box is off or offline at 6pm,
+//    it checks when it's next able to that evening, up to 10pm. After that it
+//    waits for 6pm the next day, so nobody gets the message late at night.
+//  - /update, or the Update button in /settings (admins only), checks straight
+//    away and replies with the version, the note on what's new, and Yes and No
+//    buttons, or "Already up to date".
 //  - Yes downloads the firmware, checks its size and SHA-256 checksum, installs
 //    it and restarts. Once the box is back and has reached Telegram, the admin
 //    who said yes gets "Updated to 1.3" and the other admins are told who
@@ -71,9 +75,12 @@ struct ReleaseLocation {
 // stay alive together.
 class Updates {
 public:
-    static constexpr int64_t kCheckEverySeconds = 24 * 60 * 60;
+    // The daily check happens between these times, in the box's time zone
+    // (minutes after midnight): from 18:00 up to, but not including, 22:00.
+    static constexpr uint16_t kCheckFrom = 18 * 60;
+    static constexpr uint16_t kCheckUntil = 22 * 60;
     // After a daily check fails (GitHub can't be reached), wait this long
-    // before trying again.
+    // before trying again (still only between kCheckFrom and kCheckUntil).
     static constexpr uint32_t kRetryAfterFailureMs = 60 * 60 * 1000;
     // Longest note on what's new that's shown in Telegram. Longer ones are cut.
     static constexpr size_t kMaxNotesLength = 300;
@@ -105,6 +112,10 @@ public:
             Logger& log, Network& network, FirmwareInstaller& installer,
             ReleaseLocation where = ReleaseLocation::github());
 
+    // What /update and the Update button in /settings do: checks for a new
+    // version and answers the admin in a second or two.
+    void ask(Context& ctx);
+
     Task prepare();
     Result run(const Task& task);
     void finish(const Task& task, const Result& result);
@@ -112,7 +123,9 @@ public:
 
     // ---- Smaller pieces, public for tests ----
 
-    // True if a day has passed since the last successful daily check.
+    // True if it's between 18:00 and 22:00 in the box's time zone and the daily
+    // check hasn't worked yet today. False until the clock and the box's time
+    // zone are set.
     bool dailyCheckDue() const;
     Result check();
     Result download(const Release& release);

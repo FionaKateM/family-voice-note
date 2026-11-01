@@ -29,8 +29,9 @@ Leave **Publish** unticked for a practice run. Everything is built and checked, 
 ## How a box finds and installs it
 
 - The box only ever looks at `https://github.com/FionaKateM/family-voice-note/releases/latest/download/firmware.json`. That address is built into the firmware, and no message can change it. GitHub's "latest" skips drafts and pre-releases.
-- Once a day it fetches that file. If the version is newer than its own, every admin gets "Version 0.2.0 is available. Send /update to install." Each version is only announced once. If GitHub can't be reached, it tries again an hour later.
-- `/update` checks straight away. It replies with the version, the note on what's new and Yes and No buttons, or "Already up to date". While there are no releases at all, GitHub answers "not found", which the box treats as up to date.
+- Once a day, at 6pm in the box's time zone, it fetches that file. If the version is newer than its own, every admin gets "Version 0.2.0 is available. Send /update to install." Each version is only announced once. If the box is off or offline at 6pm, it checks as soon as it can that evening, up to 10pm; after that it waits for 6pm the next day, so nobody gets the message late at night. If GitHub can't be reached, it tries again an hour later, within the same hours.
+- The check is skipped until the box's time zone has been set during setup.
+- `/update`, or the Update button in `/settings`, checks straight away. It replies with the version, the note on what's new and Yes and No buttons, or "Already up to date". While there are no releases at all, GitHub answers "not found", which the box treats as up to date.
 - On Yes, the box downloads `firmware.bin` from that version's own release, checks its size and SHA-256 checksum against `firmware.json`, installs it and restarts. A download that doesn't match is thrown away and nothing changes.
 - Once it's back and has reached Telegram, the admin who said Yes gets "Updated to 0.2.0." and the other admins are told who updated it.
 - If the new version doesn't start properly, the device goes back to the old one by itself (ticket 2.7), and every admin is told that the update didn't work.
@@ -53,7 +54,7 @@ Start the box pointed at that folder instead of GitHub:
 .pio/build/desktop/program --release-folder desktop-data/test-release
 ```
 
-Send `/update` to the bot from an admin's phone, press Yes, and the program stops. Start it again the same way and you'll get "Updated to 9.9.9."
+Send `/update` to the bot from an admin's phone (or press Update in `/settings`), press Yes, and the program stops. Start it again the same way and you'll get "Updated to 9.9.9."
 
 To see what admins are told when an update doesn't start properly, start it with `--undo-update` straight after a pretend install. It throws away the pretend version, as the device does when it goes back to the old firmware.
 
