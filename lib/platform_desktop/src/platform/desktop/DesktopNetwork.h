@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <utility>
 
 #include "hal/Network.h"
@@ -23,6 +24,11 @@ public:
     bool isConnected() const override { return true; }
     int8_t signalStrength() const override { return 0; }
     HttpResponse request(const HttpRequest& request) override;
+    // A laptop isn't really "on" one Wi-Fi network as far as the box is
+    // concerned, so this is a made-up name (the --wifi option). Changing it
+    // makes the box check which country it's in, as if it had moved.
+    std::string wifiName() const override { return wifiName_; }
+    void setWifiName(std::string name) { wifiName_ = std::move(name); }
 
     // Checked about once a second while a request is in progress (more often
     // while data is moving). If it returns true the request is abandoned and
@@ -34,6 +40,7 @@ public:
 private:
     void* curl_ = nullptr;  // CURL*, kept out of the header
     std::function<bool()> cancelCheck_;
+    std::string wifiName_ = "Laptop";
 };
 
 }  // namespace fvb

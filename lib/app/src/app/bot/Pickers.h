@@ -26,6 +26,11 @@ namespace timezonePicker {
 // first; unknown ones are skipped.
 void ask(Context& ctx, const std::string& question, const std::vector<std::string>& suggestions);
 
+// Skips the country question and sends the city list for a country with more
+// than one time zone. Returns the zone name straight away (sending nothing) if
+// the country only has one; "" otherwise, or if the code isn't known.
+std::string askCity(Context& ctx, const std::string& countryCode);
+
 // True if `value` is one of the picker's buttons.
 bool owns(const std::string& value);
 
