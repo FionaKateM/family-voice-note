@@ -51,7 +51,9 @@ It also sorts every incoming message into a kind (voice note, text, photo, photo
 
 ## Checks to do on real Telegram
 
-These can only be confirmed with a real bot and phone:
+These can only be confirmed with a real bot and phone.
+
+**Confirmed on 1 November 2026:** text, buttons, profile photos, voice note download and re-upload (both ways), and an MP3 in the box's recording format arriving as a normal voice bubble.
 
 1. **MP3 voice notes show as a normal voice bubble.** Telegram's documentation says `sendVoice` accepts MP3, but doesn't promise a voice bubble for every MP3. Send `/mp3` in the try-out below: it uploads a 3 second test tone in the same format the box will record (mono, 16 kHz, 32 kbps constant bitrate) with its duration. On your phone, check that:
     - it arrives as a voice bubble with a waveform and a play button, not as a music file or a document
