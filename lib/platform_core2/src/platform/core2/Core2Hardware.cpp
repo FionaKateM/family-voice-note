@@ -56,14 +56,40 @@ void Core2Display::setBrightness(uint8_t percent) {
 
 void Core2Display::clear() { M5.Display.fillScreen(TFT_BLACK); }
 
-void Core2Display::drawText(int16_t x, int16_t y, const std::string& text) {
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Display.setTextSize(2);
+static uint16_t toColour565(Colour c) { return M5.Display.color565(c.r, c.g, c.b); }
+
+void Core2Display::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, Colour colour) {
+    M5.Display.fillRect(x, y, w, h, toColour565(colour));
+}
+
+void Core2Display::fillCircle(int16_t centreX, int16_t centreY, int16_t radius, Colour colour) {
+    M5.Display.fillCircle(centreX, centreY, radius, toColour565(colour));
+}
+
+void Core2Display::fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+                                Colour colour) {
+    M5.Display.fillTriangle(x0, y0, x1, y1, x2, y2, toColour565(colour));
+}
+
+void Core2Display::drawText(int16_t x, int16_t y, const std::string& text, Colour colour, uint8_t size) {
+    M5.Display.setTextColor(toColour565(colour));  // no background, so text can sit on shapes
+    M5.Display.setTextSize(size);
     M5.Display.drawString(text.c_str(), x, y);
 }
 
+int16_t Core2Display::textWidth(const std::string& text, uint8_t size) const {
+    M5.Display.setTextSize(size);
+    return static_cast<int16_t>(M5.Display.textWidth(text.c_str()));
+}
+
+int16_t Core2Display::textHeight(uint8_t size) const {
+    M5.Display.setTextSize(size);
+    return static_cast<int16_t>(M5.Display.fontHeight());
+}
+
 void Core2Display::present() {
-    // Drawing goes straight to the screen for now. Ticket 2.5 may draw to a buffer first.
+    // Drawing goes straight to the screen for now, so screens flicker as they're
+    // redrawn. Ticket 2.5 should draw to a buffer (an M5Canvas sprite) first.
 }
 
 // ---- Input ----

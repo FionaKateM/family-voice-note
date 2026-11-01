@@ -5,6 +5,7 @@
 namespace fvb {
 
 enum class Button : uint8_t { Left, Middle, Right };
+// The way the finger moved: Left means it was dragged from right to left.
 enum class SwipeDirection : uint8_t { Left, Right, Up, Down };
 
 struct InputEvent {
@@ -12,7 +13,7 @@ struct InputEvent {
 
     Type type = Type::Tap;
     Button button = Button::Left;      // for ButtonPress
-    int16_t x = 0;                     // for Tap
+    int16_t x = 0;                     // for Tap, in screen pixels
     int16_t y = 0;                     // for Tap
     SwipeDirection swipe = SwipeDirection::Left;  // for Swipe
 };

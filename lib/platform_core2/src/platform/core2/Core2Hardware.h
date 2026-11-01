@@ -43,7 +43,13 @@ public:
     void setOn(bool on) override;
     void setBrightness(uint8_t percent) override;
     void clear() override;
-    void drawText(int16_t x, int16_t y, const std::string& text) override;
+    void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, Colour colour) override;
+    void fillCircle(int16_t centreX, int16_t centreY, int16_t radius, Colour colour) override;
+    void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, Colour colour) override;
+    void drawText(int16_t x, int16_t y, const std::string& text, Colour colour = Colour{255, 255, 255},
+                  uint8_t size = 2) override;
+    int16_t textWidth(const std::string& text, uint8_t size = 2) const override;
+    int16_t textHeight(uint8_t size = 2) const override;
     void present() override;
 
 private:

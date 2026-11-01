@@ -8,7 +8,23 @@ A voice-only messaging box for young children whose family live in different cou
 
 ## Building and testing
 
-You need [PlatformIO](https://platformio.org/install/cli) (`pip install platformio`). The desktop build also needs libcurl for HTTPS: it's already on a Mac; on Linux install `libcurl4-openssl-dev`.
+You need [PlatformIO](https://platformio.org/install/cli) (`pip install platformio`). The desktop build also needs:
+
+- libcurl, for HTTPS. It's already on a Mac.
+- SDL2, for the window, keyboard, mouse, mic and speakers.
+- ffmpeg, for playing voice notes and saving recordings. Without it the box still runs, but silently.
+
+On a Mac:
+
+```bash
+brew install sdl2 ffmpeg
+```
+
+On Ubuntu:
+
+```bash
+sudo apt install libcurl4-openssl-dev libsdl2-dev ffmpeg
+```
 
 Run the tests:
 
@@ -27,6 +43,16 @@ pio run -e desktop
 ```
 
 It keeps its pretend SD card and internal memory in `desktop-data/`, which git ignores.
+
+The box's screen opens in a window, with the 10 LEDs and the three buttons drawn underneath it:
+
+| To do this on the box | Do this on the laptop |
+| --- | --- |
+| Press the left, middle or right button | Press `1`, `2` or `3` (or the left, down and right arrow keys), or click the button in the window |
+| Tap the screen | Click it |
+| Swipe | Drag across the screen with the mouse button held down |
+
+Closing the window stops the box, the same as Ctrl+C. Add `--scale 3` to make the window bigger. The first time you record, macOS asks whether Terminal can use the microphone; say yes, or recordings will be silent. The screens are rough drafts for trying the flow out. What the controls do is listed at the top of `lib/app/src/app/screens/Screens.h`.
 
 To give it your setup file, add `--setup`. This copies the file onto the pretend SD card, where the box reads it and deletes the copy. Your original stays put:
 

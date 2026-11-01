@@ -2,15 +2,13 @@
 
 // Desktop versions of the simpler interfaces.
 //
-// Clock and Logger are real. The rest are placeholders that print to the
-// terminal; ticket 1.11 replaces them with a 320x240 window, keyboard, mic and
-// speakers. The real network is in DesktopNetwork.h.
+// The screen, buttons and LEDs are shown in a window (DesktopWindow.h), sound is
+// in DesktopAudio.h and the network in DesktopNetwork.h.
 
 #include <chrono>
 #include <cstdio>
 #include <string>
 #include <thread>
-#include <vector>
 
 #include "hal/Hardware.h"
 
@@ -49,41 +47,7 @@ private:
     Level minimum_;
 };
 
-// Prints each screen to the terminal until the window arrives in ticket 1.11.
-class DesktopTerminalDisplay : public Display {
-public:
-    uint16_t width() const override { return 320; }
-    uint16_t height() const override { return 240; }
-    void setOn(bool on) override { on_ = on; }
-    void setBrightness(uint8_t) override {}
-    void clear() override { lines_.clear(); }
-    void drawText(int16_t, int16_t, const std::string& text) override { lines_.push_back(text); }
-    void present() override {
-        if (!on_) return;
-        std::printf("+-- screen ---------------------------\n");
-        for (const auto& line : lines_) std::printf("| %s\n", line.c_str());
-        std::printf("+-------------------------------------\n");
-        std::fflush(stdout);
-    }
-
-private:
-    bool on_ = true;
-    std::vector<std::string> lines_;
-};
-
-class DesktopPlaceholderAudio : public Audio {
-public:
-    bool play(const std::string&) override { return false; }
-    void stopPlayback() override {}
-    bool isPlaying() const override { return false; }
-    void setVolume(uint8_t) override {}
-    bool startRecording(const std::string&) override { return false; }
-    uint32_t stopRecording() override { return 0; }
-    bool isRecording() const override { return false; }
-    uint8_t inputLevel() const override { return 0; }
-};
-
-// Keeps the last colours so a later screen window can draw them.
+// Keeps the last colours so the window can draw them.
 class DesktopLeds : public Leds {
 public:
     uint8_t count() const override { return 10; }
@@ -105,12 +69,6 @@ public:
     bool isPluggedIn() const override { return true; }
 
     int8_t battery = 100;
-};
-
-class DesktopPlaceholderInput : public Input {
-public:
-    void update() override {}
-    bool pollEvent(InputEvent&) override { return false; }
 };
 
 }  // namespace fvb
