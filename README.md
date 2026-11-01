@@ -68,6 +68,12 @@ To pretend the box has moved to a different Wi-Fi network, add `--wifi` with any
 .pio/build/desktop/program --wifi Holiday
 ```
 
+To try the low battery and offline alerts, add `--battery` with a percentage (the laptop then counts as unplugged) or `--offline-hours` with how long ago the box was last online. Admins get the messages on Telegram:
+
+```bash
+.pio/build/desktop/program --battery 15 --offline-hours 30
+```
+
 To try `/update` without publishing a real release, see [docs/updates.md](docs/updates.md#trying-it-on-the-laptop).
 
 Build the real device firmware:

@@ -57,6 +57,15 @@ void App::tick() {
     }
 
     screens_.tick();
+
+    // The bin, old messages, and storage, offline and low battery alerts.
+    housekeeping_.tick(hw_.network.isConnected());
+    int batteryLevel;
+    if (housekeeping_.takeBatteryAlert(batteryLevel)) {
+        // The sound and LED pattern come with the device's audio and power
+        // work (tickets 2.6 and 2.8). Until then it's only logged.
+        hw_.log.info("Low battery sound and lights (" + std::to_string(batteryLevel) + "%)");
+    }
 }
 
 void App::handleInput(const InputEvent& event) {

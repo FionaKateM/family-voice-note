@@ -85,7 +85,8 @@ private:
 //
 //   1. Anyone who isn't in a list and isn't partway through an invite is ignored,
 //      with no reply, unless the stranger handler knows them (someone whose
-//      invite setup was stopped or forgotten, or who's waiting for approval).
+//      invite setup was stopped or forgotten, who's waiting for approval, or a
+//      contact an admin removed).
 //      Group chats and other bots are ignored completely.
 //   2. "/start <code>" goes to the start link handler (invites, ticket 1.5).
 //   3. /cancel stops the conversation they're in.

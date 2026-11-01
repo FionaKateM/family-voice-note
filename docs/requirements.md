@@ -56,7 +56,10 @@
 ### Sounds and lights
 
 - A chime for every new message, even if the LEDs are already pulsing (except during quiet hours).
-- **Low battery** at 20%, 10% and 5%: a sound plus a distinct LED pattern. Admins also get a Telegram message.
+- **Low battery** at 20%, 10% and 5%: a sound plus a distinct LED pattern. Admins also get a Telegram message. (Ticket 1.9.)
+  - Each level alerts once. It can alert again once the battery has gone 5% above it, normally by being charged, so a wobbly reading doesn't repeat it. A restart doesn't repeat it either.
+  - Nothing is sent while the box is plugged in. A box switched on at 8% gets one alert (for 10%), not two.
+  - During quiet hours admins are still told straight away, but the sound and lights wait until quiet hours end.
 - **Volume:** the child can change voice note volume on the device. The alert volume (chimes, low battery) can only be changed by an admin.
 - **Hearing safety:** hard cap on maximum loudness, whatever the settings. Target no more than 80 to 85 dBA at 0.5 m. Check with a sound meter app.
 - **Levelling:** quiet and loud senders are evened out so they sound roughly the same. The same applies to the mic, so the child's voice comes through clearly whether they're close or far away.
@@ -97,9 +100,14 @@
 - **Folders:** everything is stored by contact, with a small index file per contact so history loads without scanning the card. A recording appears in the child's history as soon as they press Send, marked as waiting until Telegram has it.
 - **Bin:** deleted and re-recorded recordings go to a hidden bin, named with the date, time and contact. Anything older than 30 days is permanently removed. Recordings binned before the clock was ever set are kept, because their real age is unknown.
 - **Limits:** up to 30 contacts, 10 admins and 10 monitors per device.
-- **Keeping messages:** messages older than a set number of days (default 60, 0 means keep forever) are removed from the device. They stay in Telegram on family members' phones.
-- **Storage alert:** admins get a message when the card is 80% full.
-- **Offline alert:** when the device reconnects after more than 24 hours offline, admins get a message such as: "[Child]'s box was offline from Friday 18:00 to Sunday 10:00. Voice notes sent before Saturday 10:00 may not have arrived. Ask family to resend if needed."
+- **Keeping messages:** messages older than a set number of days (default 60, 0 means keep forever) are removed from the device. They stay in Telegram on family members' phones. (Ticket 1.9.)
+  - Messages the child hasn't heard yet, and recordings still waiting to send, are kept however old they are.
+  - Like the bin, messages dated before the clock was ever set are kept. The bin and old messages are cleared once the clock is set after start-up, then once an hour.
+- **Storage alert:** admins get a message when the card is 80% full, saying how to free space with `/keepmessages`. It's sent once, and only comes again after the card has dropped below 75%. (Ticket 1.9.)
+- **Offline alert:** when the device reconnects after more than 24 hours offline, admins get a message such as: "[Child]'s box was offline from Friday 18:00 to Sunday 10:00. Voice notes sent before Saturday 10:00 may not have arrived. Ask family to resend if needed." (Ticket 1.9.)
+  - Being switched off counts as offline. The box saves when it was last online every 5 minutes, so the start time can be up to 5 minutes early.
+  - Times are in the box's timezone (UTC, and saying so, if it isn't set). If it was offline for more than a week, the dates are included as well as the days.
+  - It needs the clock to be set, so it waits until then. There's no alert the very first time the box goes online.
 
 ## 8. Time
 
@@ -123,7 +131,7 @@
 | Admin | Everything in /settings, approve new people, run updates, get alerts |
 | Contact | Send and receive voice notes, change their own name, timezone, sleep hours and photo |
 | Monitor | Receive copies of voice notes, nothing else |
-| Anyone else | Nothing. Ignored completely unless they use a valid invite link |
+| Anyone else | Nothing. Ignored completely unless they use a valid invite link (or were a contact until an admin removed them, see below) |
 
 - Every admin action is checked against the admin list before it runs.
 - When an admin is added or removed, all admins are told.
@@ -137,6 +145,7 @@
   - Someone whose setup was forgotten after 7 days is told, once, to ask for a new link. After that they're ignored like anyone else.
   - Someone who has finished setup and is waiting for approval is told so.
   - Someone who taps a link that has already been used by someone else, or has run out, is told to ask for a new one. Made-up links still get no reply.
+- One more exception: a contact an admin has removed. If they send the box anything (a voice note, text, a command or an old button), they get "This box isn't taking voice notes from you at the moment." It doesn't say they were removed or by whom. They get it at most once a day; the rest of the time they get no reply. If the clock hasn't been set yet, they get it once and then nothing until it is. The box remembers up to 30 removed contacts (the oldest is forgotten first). If they're invited again and approved as a contact, the box forgets they were removed. If they're turned down, they stay on the removed list. Someone removed as a contact but still an admin or monitor is still on the box, so they get the normal replies for that role instead.
 - `/start` (without an invite code) says hello and lists what that person can do. `/help` lists the commands their roles allow. Someone with several roles sees everything they can do.
 - If a known person uses a command their roles don't allow, they get a short reply ("Only admins can use /settings."). An unknown command gets "I don't know /x. Send /help to see what I can do."
 - Multi-step conversations (setup, `/me`, menus) carry on after a restart or power cut. Each person has at most one at a time.
@@ -181,6 +190,8 @@ Contacts can send `/me` at any time to change their name, timezone, sleep hours 
 ### Removing people
 
 - Through `/settings`, with a confirmation. Removing a contact removes them and their messages from the device. Their Telegram chat history isn't affected.
+- Removed contacts aren't messaged when they're removed. If they later send the box anything, they're told "This box isn't taking voice notes from you at the moment.", at most once a day (see "Talking to the bot" in section 9).
+- Removed monitors aren't told anything; they just stop getting copies. Removed admins are told (see section 12).
 
 ## 11. Monitoring (BCC)
 
@@ -196,7 +207,7 @@ Contacts can send `/me` at any time to change their name, timezone, sleep hours 
 
 Admins send `/settings` to get a menu of buttons. The direct commands also work for anyone who prefers typing: `/contacts`, `/monitors` (or `/monitors off`, `sent`, `received`, `all`), `/admins`, `/quiethours 19:00 07:00` (or `off`), `/timezone France`, `/volume 70`, `/alertvolume 50`, `/maxrecording 360`, `/keepmessages 60`, `/childname Sam`, `/status` and `/trash getlast`. Sent without a value, each opens that part of the menu. To keep `/help` short, it only lists `/settings`, `/status` and `/trash`; the others are shortcuts for admins who know them.
 
-- Removing anyone asks for confirmation first. When an admin is removed, the other admins and the person removed are told. Removed contacts and monitors aren't messaged.
+- Removing anyone asks for confirmation first. When an admin is removed, the other admins and the person removed are told. Removed contacts and monitors aren't messaged at the time (a removed contact who gets in touch later is told the box isn't taking their voice notes, see section 9).
 - Voice volume can be set from 10% to 100%, so it can't be turned down to silent by mistake. Alert volume can go down to 0%.
 - The child's name can be up to 30 characters, the same as contact names.
 

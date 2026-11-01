@@ -34,5 +34,8 @@ bool parseUint(const std::string& s, uint64_t& out);
 // Removes spaces, tabs, \r and \n from both ends.
 std::string trim(const std::string& s);
 
+// "16,000": a number with commas between each group of three digits.
+std::string thousands(uint64_t n);
+
 }  // namespace text
 }  // namespace fvb

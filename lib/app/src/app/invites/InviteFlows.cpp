@@ -671,7 +671,17 @@ bool InviteFlows::onStranger(Context& ctx) {
 
     tidy(now);
     Invite invite;
-    if (!invites_.findByUser(userId, invite)) return false;  // nothing to do with us: stay silent
+    if (!invites_.findByUser(userId, invite)) {
+        // A contact an admin removed. Kept neutral: it doesn't say they were
+        // removed, or by whom, and it's sent at most once a day.
+        // The rest of the time they're treated like any stranger.
+        if (storage_.people.shouldTellRemoved(userId, now)) {
+            ctx.reply("This box isn't taking voice notes from you at the moment.");
+            ctx.log().info("Told a removed contact the box isn't taking their voice notes");
+            return true;
+        }
+        return false;  // nothing to do with us: stay silent
+    }
 
     if (invite.timedOutAt > 0) {
         ctx.reply("You didn't finish setting up, so I stopped after a week with no reply. Ask " + child +

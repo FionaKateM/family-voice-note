@@ -111,5 +111,15 @@ std::string trim(const std::string& s) {
     return s.substr(first, last - first + 1);
 }
 
+std::string thousands(uint64_t n) {
+    const std::string digits = std::to_string(n);
+    std::string out;
+    for (size_t i = 0; i < digits.size(); ++i) {
+        if (i > 0 && (digits.size() - i) % 3 == 0) out += ',';
+        out += digits[i];
+    }
+    return out;
+}
+
 }  // namespace text
 }  // namespace fvb

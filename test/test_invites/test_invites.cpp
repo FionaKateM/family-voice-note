@@ -770,7 +770,101 @@ void test_contact_removed_during_me_is_dropped() {
     storage->people.findContactByTelegramId(kContact, c);
     storage->people.removeContact(c.number);
     tap(kContact, "Name");
-    assertSilent();  // a stranger now
+    // The conversation is dropped, and they're told the box isn't taking their voice notes.
+    TEST_ASSERT_EQUAL_STRING("This box isn't taking voice notes from you at the moment.", lastReply(kContact).c_str());
+    ConversationState state;
+    TEST_ASSERT_FALSE(bot->conversations().find(kContact, state));
+}
+
+// ---------------------------------------------------------------------------
+// Removed contacts
+
+static const char* kRemovedReply = "This box isn't taking voice notes from you at the moment.";
+
+static void removeUncle() {
+    Contact c;
+    TEST_ASSERT_TRUE(storage->people.findContactByTelegramId(kContact, c));
+    TEST_ASSERT_TRUE(storage->removeContact(c.number));
+}
+
+void test_removed_contact_is_told_once_a_day() {
+    removeUncle();
+    sendContent(kContact, voiceContent("v1", 5));
+    auto r = replies(kContact);
+    TEST_ASSERT_EQUAL(1, r.size());
+    TEST_ASSERT_EQUAL_STRING(kRemovedReply, r[0].c_str());
+
+    // Trying again the same day gets nothing, whatever they send.
+    hw->clock.unixSeconds += kDay - 60;
+    sendContent(kContact, voiceContent("v2", 5));
+    assertSilent();
+    say(kContact, "/help");
+    assertSilent();
+    press(kContact, "#1:name");  // an old button
+    assertSilent();
+
+    // A day after they were last told, they're told again.
+    hw->clock.unixSeconds += 60;
+    say(kContact, "hello?");
+    TEST_ASSERT_EQUAL_STRING(kRemovedReply, lastReply(kContact).c_str());
+    TEST_ASSERT_EQUAL(1, replies(kContact).size());
+}
+
+void test_removed_contact_is_still_told_after_a_restart() {
+    removeUncle();
+    restart();
+    say(kContact, "hello");
+    TEST_ASSERT_EQUAL_STRING(kRemovedReply, lastReply(kContact).c_str());
+    restart();
+    say(kContact, "hello");
+    assertSilent();  // the once-a-day limit survives a restart too
+}
+
+void test_removed_contact_pressing_a_button_is_told() {
+    removeUncle();
+    press(kContact, "#1:name");
+    TEST_ASSERT_EQUAL_STRING(kRemovedReply, lastReply(kContact).c_str());
+}
+
+void test_removed_contact_invited_again_and_approved_is_forgotten() {
+    // Granny was a contact once and was removed.
+    Contact old;
+    old.telegramId = kGranny;
+    old.name = "Granny";
+    old.timezone = "Europe/London";
+    TEST_ASSERT_TRUE(storage->removeContact(storage->people.addContact(old)));
+    TEST_ASSERT_TRUE(storage->people.wasRemoved(kGranny));
+
+    // A new invite link takes priority over the removed reply.
+    setUpAsGranny(makeInvite());
+    tap(kGranny, "I understand");
+    TEST_ASSERT_TRUE(contains(lastReply(kGranny), "now need to approve you"));
+    press(kAdmin, "approve:" + std::to_string(pendingId()) + ":y");
+    TEST_ASSERT_TRUE(storage->people.isContact(kGranny));
+    TEST_ASSERT_FALSE(storage->people.wasRemoved(kGranny));
+}
+
+void test_removed_contact_turned_down_again_is_still_remembered() {
+    Contact old;
+    old.telegramId = kGranny;
+    old.name = "Granny";
+    old.timezone = "Europe/London";
+    TEST_ASSERT_TRUE(storage->removeContact(storage->people.addContact(old)));
+
+    setUpAsGranny(makeInvite());
+    tap(kGranny, "I understand");
+    press(kAdmin, "approve:" + std::to_string(pendingId()) + ":n");
+    TEST_ASSERT_TRUE(storage->people.wasRemoved(kGranny));
+    say(kGranny, "hello?");
+    TEST_ASSERT_EQUAL_STRING(kRemovedReply, lastReply(kGranny).c_str());
+}
+
+void test_removed_contact_who_is_still_an_admin_is_not_told() {
+    storage->people.addAdmin(Person{kContact, "Uncle"});
+    removeUncle();
+    sendContent(kContact, voiceContent("v1", 5));
+    // Still on the box as an admin, so they get the normal reply instead.
+    for (const auto& r : replies(kContact)) TEST_ASSERT_TRUE(r != kRemovedReply);
 }
 
 // ---------------------------------------------------------------------------
@@ -941,6 +1035,12 @@ int main() {
     RUN_TEST(test_contact_changes_their_details_with_me);
     RUN_TEST(test_me_is_only_for_contacts);
     RUN_TEST(test_contact_removed_during_me_is_dropped);
+    RUN_TEST(test_removed_contact_is_told_once_a_day);
+    RUN_TEST(test_removed_contact_is_still_told_after_a_restart);
+    RUN_TEST(test_removed_contact_pressing_a_button_is_told);
+    RUN_TEST(test_removed_contact_invited_again_and_approved_is_forgotten);
+    RUN_TEST(test_removed_contact_turned_down_again_is_still_remembered);
+    RUN_TEST(test_removed_contact_who_is_still_an_admin_is_not_told);
     RUN_TEST(test_invite_store_round_trip_and_limits);
     RUN_TEST(test_invite_store_tidy);
     RUN_TEST(test_pending_store);

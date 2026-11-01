@@ -473,6 +473,9 @@ void test_removing_a_contact_needs_confirming() {
     TEST_ASSERT_FALSE(storage->people.isContact(kContact));
     TEST_ASSERT_FALSE(storage->hasContactPhoto(grannyNumber));
     TEST_ASSERT_TRUE(contains(lastEdit(), "Granny has been removed from Child's box."));
+    // They aren't told now, but the box remembers them for when they next get in touch.
+    TEST_ASSERT_EQUAL(0, replies(kContact).size());
+    TEST_ASSERT_TRUE(storage->people.wasRemoved(kContact));
 }
 
 void test_removing_a_monitor() {
@@ -482,6 +485,7 @@ void test_removing_a_monitor() {
     tap(kAdmin, "Yes, remove");
     TEST_ASSERT_FALSE(storage->people.isMonitor(kMonitor));
     TEST_ASSERT_TRUE(contains(lastEdit(), "Pat is no longer a monitor."));
+    TEST_ASSERT_FALSE(storage->people.wasRemoved(kMonitor));  // only contacts are remembered
 }
 
 void test_removing_an_admin_tells_everyone() {
