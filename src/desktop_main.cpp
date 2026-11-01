@@ -1,6 +1,7 @@
 // Entry point for the laptop version of the box.
 //
-//   .pio/build/desktop/program                 run until Ctrl+C
+//   .pio/build/desktop/program                 run until Ctrl+C. Once a bot token has been
+//                                              saved, the box answers on Telegram
 //   .pio/build/desktop/program --data <folder> use a different data folder
 //   .pio/build/desktop/program --ticks <n>     stop after n loops (used by CI)
 //   .pio/build/desktop/program --setup <file>  copy a setup file onto the pretend SD card
@@ -20,15 +21,20 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <system_error>
+#include <thread>
+#include <vector>
 
 #include "app/App.h"
+#include "app/bot/Bot.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
 #include "platform/desktop/DesktopNetwork.h"
 #include "platform/desktop/DesktopSettingsStore.h"
 #include "platform/desktop/TryTelegram.h"
+#include "telegram/TelegramClient.h"
 
 namespace {
 
@@ -90,10 +96,48 @@ int main(int argc, char** argv) {
     fvb::App app(hardware);
 
     app.begin();
+
+    // Telegram runs on its own thread, the way the device will run network work
+    // on its own core (ticket 2.3). Waiting for messages happens without the lock;
+    // anything that touches storage or sends replies holds it, and so does tick().
+    std::mutex boxLock;
+    std::thread telegramThread;
+    fvb::telegram::TelegramClient telegramClient(network, files, logger, app.storage().settings.botToken());
+    fvb::Bot bot(telegramClient, app.storage(), settings, clock, logger);
+    if (app.storage().settings.hasBotToken()) {
+        telegramThread = std::thread([&] {
+            while (!stopRequested && bot.state() != fvb::Bot::State::TokenRejected) {
+                uint32_t waitMs;
+                if (bot.state() == fvb::Bot::State::NotConnected) {
+                    std::lock_guard<std::mutex> lock(boxLock);
+                    waitMs = bot.connect();
+                } else {
+                    std::vector<fvb::telegram::Update> updates;
+                    waitMs = bot.poll(updates);
+                    std::lock_guard<std::mutex> lock(boxLock);
+                    bot.handle(updates);
+                }
+                for (uint32_t waited = 0; waited < waitMs && !stopRequested; waited += 100) clock.sleepMs(100);
+            }
+        });
+    }
+
     while (!stopRequested && (maxTicks < 0 || static_cast<long>(app.tickCount()) < maxTicks)) {
-        app.tick();
+        {
+            std::lock_guard<std::mutex> lock(boxLock);
+            app.tick();
+        }
         clock.sleepMs(10);
     }
     logger.info("Stopped after " + std::to_string(app.tickCount()) + " loops");
+
+    if (telegramThread.joinable()) {
+        // The Telegram thread may be waiting up to 35 seconds for Telegram to
+        // answer. Rather than wait, take the lock (so nothing is half-saved) and
+        // leave straight away.
+        std::lock_guard<std::mutex> lock(boxLock);
+        std::fflush(nullptr);
+        std::_Exit(0);
+    }
     return 0;
 }

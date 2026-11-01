@@ -9,9 +9,9 @@
 namespace fvb {
 namespace telegram {
 
-// A throwaway bot for trying the Telegram connection from a phone, before the
-// real conversation engine exists (ticket 1.4). Run it with
-// `program --try-telegram` on the laptop.
+// A throwaway bot for trying the Telegram connection from a phone: voice notes,
+// reactions and photos, which the real box can't do until tickets 1.5 and 1.7.
+// Run it with `program --try-telegram` on the laptop.
 //
 // It prints an invite link. The first person to open that link becomes the
 // only person it answers; everyone else is ignored. Then:

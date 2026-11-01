@@ -112,6 +112,18 @@
 - When an admin is added or removed, all admins are told.
 - The last admin can't be removed.
 
+### Talking to the bot
+
+- The bot only talks in one-to-one chats. Group chats and messages from other bots are ignored.
+- Anyone not on a list gets no reply at all, whatever they send, unless they open a valid invite link. Once they have, they're answered only within their setup conversation until it finishes.
+- `/start` (without an invite code) says hello and lists what that person can do. `/help` lists the commands their roles allow. Someone with several roles sees everything they can do.
+- If a known person uses a command their roles don't allow, they get a short reply ("Only admins can use /settings."). An unknown command gets "I don't know /x. Send /help to see what I can do."
+- Multi-step conversations (setup, `/me`, menus) carry on after a restart or power cut. Each person has at most one at a time.
+- `/cancel` stops the conversation they're in. Sending another command also ends it and runs the new command.
+- Buttons from a conversation that has finished pop up "This has finished." and do nothing.
+- A conversation left with no reply for 7 days is forgotten. If the clock hasn't been set yet, conversations don't time out.
+- If someone loses a role partway through a conversation that needs it (an admin is removed during `/settings`), the conversation is dropped.
+
 ## 10. Invite and setup flows
 
 ### Adding a contact
@@ -183,7 +195,7 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 - **Libraries to confirm during the build:** M5Unified, LVGL, ArduinoJson, shine-esp32 for MP3 recording, and an Opus decoder for incoming voice notes (ESP32-audioI2S or libopus).
 - **Telegram client:** a small client of our own (`lib/telegram`) built on the network interface, not UniversalTelegramBot, so it runs and is tested on the desktop build. Decided in ticket 1.3; reasons in `docs/telegram.md`.
 - **Performance:** audio runs on one processor core, and screen and network on the other. The screen and SD card share an SPI bus, so access must be locked. Audio is buffered in PSRAM and written to the card in chunks. Screen and LED updates are limited to 15 to 20 per second while recording.
-- **Telegram:** long polling (`getUpdates`, 25 second timeout) with the connection kept open.
+- **Telegram:** long polling (`getUpdates`, 25 second timeout) with the connection kept open. The box saves how far through Telegram's messages it has got after handling each one, so nothing is handled twice after a restart. If the box restarts twice while handling the same message, that message is skipped, so one bad message can't keep restarting it. A new bot token starts again from that bot's first message.
 - **Storage:** settings, secrets and people lists in the ESP32's internal memory (NVS). Messages, photos and indexes on the SD card. The layout is described at the top of `lib/app/src/app/storage/Paths.h`.
 
 ## 15. Risks to prove early

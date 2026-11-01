@@ -34,7 +34,7 @@ To give it your setup file, add `--setup`. This copies the file onto the pretend
 .pio/build/desktop/program --setup secrets/setup.txt
 ```
 
-To try the Telegram connection from your phone with a test bot, see [docs/telegram.md](docs/telegram.md#trying-it-on-the-laptop).
+Once a bot token has been saved this way, the box answers on Telegram while it runs. To try it from your phone with a test bot, see [docs/telegram.md](docs/telegram.md#trying-it-on-the-laptop).
 
 Build the real device firmware:
 
