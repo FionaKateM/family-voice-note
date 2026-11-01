@@ -3,9 +3,8 @@
 // Desktop versions of the simpler interfaces.
 //
 // Clock and Logger are real. The rest are placeholders that print to the
-// terminal; later tickets replace them:
-//   Network  -> ticket 1.3 (real HTTPS to Telegram)
-//   Display, Input, Audio -> ticket 1.11 (320x240 window, keyboard, mic and speakers)
+// terminal; ticket 1.11 replaces them with a 320x240 window, keyboard, mic and
+// speakers. The real network is in DesktopNetwork.h.
 
 #include <chrono>
 #include <cstdio>
@@ -82,15 +81,6 @@ public:
     uint32_t stopRecording() override { return 0; }
     bool isRecording() const override { return false; }
     uint8_t inputLevel() const override { return 0; }
-};
-
-class DesktopPlaceholderNetwork : public Network {
-public:
-    bool isConnected() const override { return false; }
-    int8_t signalStrength() const override { return 0; }
-    HttpResponse request(const HttpRequest&) override {
-        return HttpResponse{0, "", "desktop network not built yet (ticket 1.3)"};
-    }
 };
 
 // Keeps the last colours so a later screen window can draw them.

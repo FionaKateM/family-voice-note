@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 
@@ -12,19 +14,30 @@ struct HttpRequest {
     std::map<std::string, std::string> headers;
     std::string body;
     uint32_t timeoutMs = 30000;
+
+    // Optional. When set, the response body is handed over in pieces as it
+    // arrives instead of being collected in HttpResponse::body. Used to download
+    // files straight to the SD card without holding the whole file in memory.
+    // Return false to stop the download early.
+    // Pieces are passed whatever the status code, so check the status before
+    // trusting what was received.
+    std::function<bool(const char* data, size_t length)> onBodyChunk;
 };
 
 struct HttpResponse {
     int status = 0;  // 0 means the request didn't reach the server
-    std::string body;
+    std::string body;  // empty when the request used onBodyChunk
     std::string error;  // filled in when status is 0
 
     bool ok() const { return status >= 200 && status < 300; }
 };
 
-// Internet access. Kept to plain HTTPS requests for now. Ticket 1.3 will add
-// whatever Telegram needs on top (file uploads, downloads straight to the SD card,
-// keeping the connection open for long polling).
+// Internet access, as plain HTTPS requests. Telegram is built on top of this in
+// lib/telegram.
+//
+// Implementations should keep the connection to a server open between requests
+// where they can. The box asks Telegram for new messages every 25 seconds or so,
+// and setting up a fresh encrypted connection each time is slow on the ESP32.
 class Network {
 public:
     virtual ~Network() = default;
