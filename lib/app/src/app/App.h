@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "app/housekeeping/Housekeeping.h"
 #include "app/screens/Screens.h"
 #include "app/storage/Storage.h"
 #include "hal/Hardware.h"
@@ -16,7 +17,10 @@ namespace fvb {
 class App {
 public:
     explicit App(Hardware& hardware)
-        : hw_(hardware), storage_(hardware.files, hardware.settings), screens_(hardware, storage_) {}
+        : hw_(hardware),
+          storage_(hardware.files, hardware.settings),
+          screens_(hardware, storage_),
+          housekeeping_(storage_, hardware.settings, hardware.clock, hardware.power, hardware.log) {}
 
     // Call once at startup.
     void begin();
@@ -26,6 +30,7 @@ public:
     uint64_t tickCount() const { return ticks_; }
     Storage& storage() { return storage_; }
     Screens& screens() { return screens_; }
+    Housekeeping& housekeeping() { return housekeeping_; }
 
 private:
     void handleInput(const InputEvent& event);
@@ -34,6 +39,7 @@ private:
     Hardware& hw_;
     Storage storage_;
     Screens screens_;
+    Housekeeping housekeeping_;
     uint64_t ticks_ = 0;
 };
 
