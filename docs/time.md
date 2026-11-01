@@ -24,6 +24,4 @@ Only today's rules are kept, not history. Old names (for example `Europe/Kiev`) 
 
 ## Where the box is
 
-`LocationService` asks ipinfo.io (or ipapi.co if that fails) where the box's internet connection is. `CountryWatcher` does this when the box first gets online, then daily, and says when the box seems to be in a different country from its saved timezone. `MovedCountryCheck` remembers which country the admins were last asked about, so they're asked once per move.
-
-Sending the actual questions to admins, and handling their answers, belongs to the conversation code (tickets 1.5 and 1.6).
+`LocationService` asks ipinfo.io (or ipapi.co if that fails) where the box's internet connection is. This happens once, during setup, so the box can suggest its timezone. Asking the admin to confirm belongs to the setup conversation (ticket 1.5). If the box later moves country, a parent changes the timezone in `/settings`; the box doesn't check again by itself.

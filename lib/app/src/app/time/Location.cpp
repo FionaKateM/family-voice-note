@@ -6,8 +6,6 @@ namespace fvb {
 
 namespace {
 
-constexpr const char* kAskedKey = "tz_asked";  // NVS key, 15 characters at most
-
 struct Service {
     const char* url;
     const char* countryField;
@@ -68,45 +66,6 @@ LocationGuess LocationService::guess() {
         last.error = std::string(service.url) + ": " + guess.error;
     }
     return last;
-}
-
-const CountryInfo* MovedCountryCheck::consider(const LocationGuess& guess) {
-    if (!guess.ok || !guess.country) return nullptr;
-    const TimeZoneInfo* home = timezones::find(settings_.timezone());
-    if (!home) return nullptr;  // not set up yet; setup asks its own question
-
-    if (timezones::countryOf(*home) == guess.country) {
-        // Back home (or never left). Forget the last question so a later move is asked about.
-        if (store_.has(kAskedKey)) store_.remove(kAskedKey);
-        return nullptr;
-    }
-    if (lastAsked() == guess.country->code) return nullptr;
-    return guess.country;
-}
-
-void MovedCountryCheck::markAsked(const CountryInfo& country) { store_.setString(kAskedKey, country.code); }
-
-std::string MovedCountryCheck::lastAsked() const { return store_.getString(kAskedKey); }
-
-CountryWatcher::Suggestion CountryWatcher::update(uint64_t millisSinceBoot) {
-    Suggestion suggestion;
-    if (millisSinceBoot < nextCheckMs_ || !network_.isConnected()) return suggestion;
-
-    const LocationGuess guess = service_.guess();
-    if (!guess.ok) {
-        log_.warning("Couldn't check the box's location: " + guess.error);
-        nextCheckMs_ = millisSinceBoot + kRetryAfterMs;
-        return suggestion;
-    }
-    nextCheckMs_ = millisSinceBoot + kCheckEveryMs;
-    lastGuess_ = guess;
-
-    suggestion.country = check_.consider(guess);
-    if (suggestion.country) {
-        suggestion.zone = guess.zone;
-        log_.info(std::string("The box seems to have moved to ") + suggestion.country->name);
-    }
-    return suggestion;
 }
 
 }  // namespace fvb
