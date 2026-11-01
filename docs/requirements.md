@@ -147,9 +147,9 @@
    - What [child] calls you (e.g. Granny). Typed. Up to 30 characters, and not the same as another contact's name.
    - Your country and timezone. The box's own country and other contacts' countries are offered as buttons first, then "Another country" leads to an A to Z list. Typing the country's name also works. Countries with more than one timezone then ask for the nearest city.
    - Your sleep hours (default 9pm to 9am). [Keep these] or [Change], which shows hour buttons for bedtime and then waking time.
-   - Your photo: use your Telegram profile picture or send a different one. Photos sent as files are turned down with a prompt to send them as a normal photo. Download the size closest to 320px wide. There's also a [No photo for now] button; they can add one later with `/me`.
+   - Your photo: use your Telegram profile picture or send a different one. Photos sent as files are turned down with a prompt to send them as a normal photo. Download the size closest to 320px wide. The photo is required, because the child can't read and tells people apart by their photos. There's no way to skip it.
    - A notice: "[Child]'s parents may be able to hear all voice notes to and from you." [I understand]
-5. All admins get "Granny has finished setting up. Approve? [Yes] [No]", with their Telegram name and @username (so admins can check it's the right person), timezone, sleep hours and whether they sent a photo.
+5. All admins get "Granny has finished setting up. Approve? [Yes] [No]", with their Telegram name and @username (so admins can check it's the right person), timezone and sleep hours.
    - The first admin to answer decides. Every admin's message then changes to say who approved or turned them down, so nobody answers twice.
    - The photo is downloaded once they're approved. If that fails, they're still added, and the approving admin is told the person can send it again with `/me`.
    - If turned down, the person gets "Sorry, [Child]'s parents didn't approve this." and is treated as a stranger again.

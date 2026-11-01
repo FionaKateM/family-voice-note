@@ -539,11 +539,31 @@ void test_no_profile_picture_asks_for_a_photo() {
     tap(kGranny, "United Kingdom");
     tap(kGranny, "Keep these");
     TEST_ASSERT_TRUE(contains(lastReply(kGranny), "Send me a photo of yourself"));
+    TEST_ASSERT_EQUAL(0, lastButtons().size());  // a photo is required, so no way to skip
+
+    say(kGranny, "I don't have one");
+    TEST_ASSERT_EQUAL_STRING("Please send me a photo of yourself.", lastReply(kGranny).c_str());
+    sendPhoto(kGranny);
+    tap(kGranny, "I understand");
+    TEST_ASSERT_EQUAL_STRING("sent-320", flows->pending().all()[0].photoFileId.c_str());
+}
+
+void test_setup_photo_cannot_be_skipped() {
+    openLink(kGranny, makeInvite());
+    say(kGranny, "Granny");
+    tap(kGranny, "United Kingdom");
+    tap(kGranny, "Keep these");
     auto buttons = lastButtons();
     TEST_ASSERT_EQUAL(1, buttons.size());
-    tap(kGranny, "No photo for now");
-    tap(kGranny, "I understand");
-    TEST_ASSERT_TRUE(flows->pending().all()[0].photoFileId.empty());
+    TEST_ASSERT_EQUAL_STRING("Use my profile picture", buttons[0].first.c_str());
+
+    // Even an old-style skip button does nothing.
+    ConversationState state;
+    bot->conversations().find(kGranny, state);
+    press(kGranny, "#" + std::to_string(state.id) + ":photo:none");
+    TEST_ASSERT_EQUAL_STRING("This button no longer works.", popupText().c_str());
+    bot->conversations().find(kGranny, state);
+    TEST_ASSERT_EQUAL_STRING("photo", state.step.c_str());
 }
 
 void test_setup_carries_on_after_a_restart() {
@@ -904,6 +924,7 @@ int main() {
     RUN_TEST(test_changing_sleep_hours);
     RUN_TEST(test_photo_sent_as_a_file_is_turned_down);
     RUN_TEST(test_no_profile_picture_asks_for_a_photo);
+    RUN_TEST(test_setup_photo_cannot_be_skipped);
     RUN_TEST(test_setup_carries_on_after_a_restart);
     RUN_TEST(test_made_up_link_is_ignored);
     RUN_TEST(test_link_only_works_for_the_first_person);

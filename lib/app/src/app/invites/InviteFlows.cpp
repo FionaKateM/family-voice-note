@@ -139,10 +139,10 @@ public:
             ctx.editButtonMessage("Photo: your Telegram profile picture.");
             return finishedStep(ctx, state, "photo");
         }
-        if (state.step == "photo" && value == "photo:none") {
+        // Setup needs a photo, so only /me has a way to carry on without sending one.
+        if (!setup_ && state.step == "photo" && value == "photo:none") {
             state.set("photo", "");
-            ctx.editButtonMessage(setup_ ? "Photo: none for now. You can add one later with /me."
-                                         : "Photo: kept as it was.");
+            ctx.editButtonMessage("Photo: kept as it was.");
             return finishedStep(ctx, state, "photo");
         }
         if (setup_ && state.step == "notice" && value == "notice:ok") {
@@ -267,10 +267,10 @@ private:
             ctx.log().warning("Couldn't look up a profile picture");
             hasProfile = false;
         }
-        const bool keepExisting = !setup_ && hasExistingPhoto(ctx);
-        const std::string noneLabel = keepExisting ? "Keep my current photo" : "No photo for now";
         InlineKeyboard keyboard;
-        std::string question = "Now a photo of you for " + child() + "'s box. ";
+        // The child can't read, so the photo is how they tell people apart.
+        std::string question = "Now a photo of you for " + child() + "'s box, so " + child() +
+                               " can see who they're talking to. ";
         if (hasProfile) {
             state.set("profile", profile.fileId);
             keyboard.push_back({ctx.button("Use my profile picture", "photo:profile")});
@@ -278,8 +278,11 @@ private:
         } else {
             question += "Send me a photo of yourself.";
         }
-        keyboard.push_back({ctx.button(noneLabel, "photo:none")});
-        ctx.reply(question, &keyboard);
+        if (!setup_) {
+            keyboard.push_back(
+                {ctx.button(hasExistingPhoto(ctx) ? "Keep my current photo" : "Not now", "photo:none")});
+        }
+        ctx.reply(question, keyboard.empty() ? nullptr : &keyboard);
     }
 
     bool hasExistingPhoto(Context& ctx) const {
@@ -294,7 +297,8 @@ private:
             return Outcome::Continue;
         }
         if (message.kind != MessageKind::Photo) {
-            ctx.reply("Send me a photo, or tap one of the buttons above.");
+            const bool hasButtons = !setup_ || !state.get("profile").empty();
+            ctx.reply(hasButtons ? "Send me a photo, or tap the button above." : "Please send me a photo of yourself.");
             return Outcome::Continue;
         }
         const telegram::PhotoSize* best = telegram::closestToWidth(message.photos, kPhotoWidth);
@@ -712,8 +716,7 @@ bool InviteFlows::submit(Context& ctx, PendingApproval request, const std::strin
         case InviteRole::Contact:
             text = who + " has finished setting up. Approve?\n\nTelegram name: " + request.telegramName +
                    "\nTime zone: " + timezonePicker::describe(request.details.timezone) +
-                   "\nSleep hours: " + sleepHours(request.details.sleepStart, request.details.sleepEnd) +
-                   "\nPhoto: " + (request.photoFileId.empty() ? "none" : "yes");
+                   "\nSleep hours: " + sleepHours(request.details.sleepStart, request.details.sleepEnd);
             break;
         case InviteRole::Monitor:
             text = who + " wants to be a monitor and get copies of " + child + "'s voice notes. Approve?";
