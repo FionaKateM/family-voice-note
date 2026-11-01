@@ -32,6 +32,22 @@ bool Storage::markSent(const OutboxEntry& entry, int64_t telegramMessageId, cons
     return outbox.remove(entry.sequence);
 }
 
+bool Storage::markHeard(uint32_t contact, uint32_t messageId) {
+    StoredMessage m;
+    if (!messages.find(contact, messageId, m) || m.direction != StoredMessage::Direction::Received) return false;
+    if (m.status == StoredMessage::Status::Heard) return true;  // already reacted to
+    if (!messages.markHeard(contact, messageId)) return false;
+    if (m.telegramMessageId == 0) return true;  // nothing to react to
+
+    Job job;
+    job.kind = Job::Kind::Reaction;
+    job.contact = contact;
+    job.telegramMessageId = m.telegramMessageId;
+    // If this fails the message is still heard; the 👀 is the only thing lost.
+    jobs.add(job);
+    return true;
+}
+
 std::string Storage::binRecording(uint32_t contact, const std::string& recordingPath, int64_t now) {
     Contact c;
     people.findContact(contact, c);  // name is only for the file name; fine if missing
@@ -41,6 +57,7 @@ std::string Storage::binRecording(uint32_t contact, const std::string& recording
 bool Storage::removeContact(uint32_t contact) {
     if (!people.removeContact(contact)) return false;
     outbox.removeForContact(contact);
+    jobs.removeForContact(contact);
     messages.removeAll(contact);
     return true;
 }

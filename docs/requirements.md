@@ -51,6 +51,7 @@
 - Play the current contact's oldest unread message, so none get skipped. If everything has been heard, play their latest message. (Changed in ticket 1.11 from "the latest message", which would skip earlier unread ones.)
 - History: a scrollable list of past messages with that contact, sent and received, tap to play.
 - When the child plays a received message to the end, the sender gets a reaction on their message in Telegram (👀). Telegram only allows reactions from a fixed list of emoji; 👀 is on it (confirmed in ticket 1.3).
+  - Only the first time a message is heard. If the box is offline, the 👀 waits and goes when it's back. If Telegram turns it down (for example the sender deleted their message), it's dropped. (Ticket 1.7.)
 
 ### Sounds and lights
 
@@ -83,9 +84,16 @@
 ## 7. Messages and storage
 
 - **Incoming:** voice notes from approved contacts are downloaded to the SD card. Messages from anyone else are ignored with no reply, unless they've arrived through a valid invite link.
-- **Not a voice note:** if a contact sends text, a photo, a sticker, a video, a round video message or a music file, the bot replies "[Child] can only receive voice notes."
+  - A voice note from a contact always goes to the child, even if the contact is partway through `/me`. Their `/me` carries on afterwards.
+  - Downloads that fail are tried again later, and voice notes from one contact are stored in the order they were sent. If Telegram won't hand the file over at all, the contact is told "Sorry, your voice note didn't reach [Child]'s box. Please send it again."
+  - Telegram won't let bots download anything over 20 MB (many hours of voice). The contact is asked to send a shorter one.
+  - Admins and monitors who aren't also contacts can't send the child voice notes. They're told "Only [Child]'s contacts can send voice notes to the box."
+- **Not a voice note:** if a contact sends text, a photo, a sticker, a video, a round video message, a music file or anything else, the bot replies "[Child] can only receive voice notes." At most once a minute per person, so an album of photos gets one reply, not ten. (Ticket 1.7.)
 - **Outgoing:** recordings are MP3 and sent with Telegram's `sendVoice`, including the duration, so they show as normal voice note bubbles.
 - **Outbox:** survives power cuts and reboots, sends in order, and retries with longer gaps each time if the network is down.
+  - Gaps double from 5 seconds up to 15 minutes, or longer if Telegram asks the box to slow down. The child's recordings are never given up on.
+  - Recordings to one contact always arrive in the order the child sent them. A problem sending to one contact doesn't hold up the others.
+  - If Telegram says a contact can't be reached (usually because they've blocked or stopped the bot), all admins are told once, and the box keeps trying every hour in case the contact starts the bot again. (Ticket 1.7.)
 - **Folders:** everything is stored by contact, with a small index file per contact so history loads without scanning the card. A recording appears in the child's history as soon as they press Send, marked as waiting until Telegram has it.
 - **Bin:** deleted and re-recorded recordings go to a hidden bin, named with the date, time and contact. Anything older than 30 days is permanently removed. Recordings binned before the clock was ever set are kept, because their real age is unknown.
 - **Limits:** up to 30 contacts, 10 admins and 10 monitors per device.
@@ -178,6 +186,9 @@ Contacts can send `/me` at any time to change their name, timezone, sleep hours 
 
 - One setting for the whole device: Off, Sent only, Received only, or All.
 - Every monitor gets a copy of each matching voice note, labelled with who it's from and to, e.g. "[Child] to Granny, 14:32".
+  - The time is when the voice note was sent, in the box's own timezone. It's left off until the clock is set and the timezone confirmed.
+  - A monitor who is also the contact in that conversation doesn't get a copy: they already have the voice note.
+  - Copies wait and retry like everything else if the box is offline. A copy for someone who has since stopped being a monitor isn't sent. (Ticket 1.7.)
 - Copies reuse Telegram's stored copy of the audio (`file_id`), so nothing is uploaded twice.
 - Contacts are told about this during their setup.
 
@@ -222,7 +233,7 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 - **Libraries to confirm during the build:** M5Unified, LVGL, ArduinoJson, shine-esp32 for MP3 recording, and an Opus decoder for incoming voice notes (ESP32-audioI2S or libopus).
 - **Telegram client:** a small client of our own (`lib/telegram`) built on the network interface, not UniversalTelegramBot, so it runs and is tested on the desktop build. Decided in ticket 1.3; reasons in `docs/telegram.md`.
 - **Performance:** audio runs on one processor core, and screen and network on the other. The screen and SD card share an SPI bus, so access must be locked. Audio is buffered in PSRAM and written to the card in chunks. Screen and LED updates are limited to 15 to 20 per second while recording.
-- **Telegram:** long polling (`getUpdates`, 25 second timeout) with the connection kept open. The box saves how far through Telegram's messages it has got after handling each one, so nothing is handled twice after a restart. If the box restarts twice while handling the same message, that message is skipped, so one bad message can't keep restarting it. A new bot token starts again from that bot's first message.
+- **Telegram:** long polling (`getUpdates`, 25 second timeout) with the connection kept open. Sending (the outbox, downloads, 👀 reactions, monitor copies and notices) uses a second connection of its own, so it never waits behind the long poll. Work waiting to be done is kept on the SD card (`/outbox` and `/jobs`), so it survives a restart. (Ticket 1.7.) The box saves how far through Telegram's messages it has got after handling each one, so nothing is handled twice after a restart. If the box restarts twice while handling the same message, that message is skipped, so one bad message can't keep restarting it. A new bot token starts again from that bot's first message.
 - **Storage:** settings, secrets and people lists in the ESP32's internal memory (NVS). Messages, photos and indexes on the SD card. The layout is described at the top of `lib/app/src/app/storage/Paths.h`.
 
 ## 15. Risks to prove early

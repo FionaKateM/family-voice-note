@@ -41,6 +41,7 @@
 #include "app/App.h"
 #include "app/bot/Bot.h"
 #include "app/invites/InviteFlows.h"
+#include "app/messages/Messaging.h"
 #include "app/settings/AdminSettings.h"
 #include "app/settings/MovedCountry.h"
 #include "app/time/Location.h"
@@ -139,6 +140,13 @@ int main(int argc, char** argv) {
     fvb::MovedCountry movedCountry(bot, telegramClient, app.storage(), settings, logger);
     bool locationChecked = false;
 
+    // Sending (the outbox, downloads, 👀 reactions, monitor copies) has its own
+    // connection and thread, so it never waits behind the bot's long poll.
+    fvb::DesktopNetwork sendNetwork;
+    fvb::telegram::TelegramClient sendClient(sendNetwork, files, logger, app.storage().settings.botToken());
+    fvb::Messaging messaging(bot, sendClient, app.storage(), clock, logger);
+    std::thread messagingThread;
+
     // Ctrl+C abandons a request only while connecting or waiting for new
     // messages. A reply that's being sent is let finish, so a message is never
     // marked as handled with its answer cut off.
@@ -192,6 +200,32 @@ int main(int argc, char** argv) {
         });
     }
 
+    if (app.storage().settings.hasBotToken()) {
+        messagingThread = std::thread([&] {
+            while (!fvb::stopRequested()) {
+                // Choosing and recording hold the lock; talking to Telegram doesn't,
+                // so the screen keeps moving during an upload. An upload already
+                // under way is let finish when Ctrl+C is pressed, so a voice note
+                // is never sent twice.
+                fvb::Messaging::Task task;
+                uint32_t waitMs;
+                {
+                    std::lock_guard<std::mutex> lock(boxLock);
+                    waitMs = messaging.prepare(task);
+                }
+                if (task.kind != fvb::Messaging::Task::Kind::None) {
+                    messaging.run(task);
+                    std::lock_guard<std::mutex> lock(boxLock);
+                    messaging.finish(task);
+                    continue;
+                }
+                for (uint32_t waited = 0; waited < waitMs && !fvb::stopRequested(); waited += 100) {
+                    clock.sleepMs(100);
+                }
+            }
+        });
+    }
+
     while (!fvb::stopRequested() && (maxTicks < 0 || static_cast<long>(app.tickCount()) < maxTicks)) {
         {
             std::lock_guard<std::mutex> lock(boxLock);
@@ -202,6 +236,7 @@ int main(int argc, char** argv) {
 
     fvb::requestStop();  // for when --ticks ran out rather than Ctrl+C
     if (telegramThread.joinable()) telegramThread.join();
+    if (messagingThread.joinable()) messagingThread.join();
     logger.info("Stopped after " + std::to_string(app.tickCount()) + " loops");
     return 0;
 }

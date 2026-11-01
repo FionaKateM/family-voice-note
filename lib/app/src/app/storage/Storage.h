@@ -5,6 +5,7 @@
 
 #include "app/storage/Bin.h"
 #include "app/storage/DeviceSettings.h"
+#include "app/storage/JobQueue.h"
 #include "app/storage/MessageStore.h"
 #include "app/storage/Outbox.h"
 #include "app/storage/Paths.h"
@@ -20,12 +21,13 @@ namespace fvb {
 class Storage {
 public:
     Storage(FileStorage& files, SettingsStore& store)
-        : settings(store), people(store), messages(files), outbox(files), bin(files), files_(files) {}
+        : settings(store), people(store), messages(files), outbox(files), jobs(files), bin(files), files_(files) {}
 
     DeviceSettings settings;
     People people;
     MessageStore messages;
     Outbox outbox;
+    JobQueue jobs;
     Bin bin;
 
     // Reads, saves and deletes /setup.txt if it's on the card.
@@ -39,14 +41,22 @@ public:
     // Telegram accepted an outbox entry. Updates the message and removes the entry.
     bool markSent(const OutboxEntry& entry, int64_t telegramMessageId, const std::string& telegramFileId);
 
+    // The child played a received message to the end. Marks it heard and, the
+    // first time, queues the 👀 reaction on it in Telegram.
+    bool markHeard(uint32_t contact, uint32_t messageId);
+
     // The child pressed delete or re-record. Moves the recording to the bin.
     // Returns the bin path, or "" on failure.
     std::string binRecording(uint32_t contact, const std::string& recordingPath, int64_t now);
 
+    // The SD card itself, for jobs that need a file directly.
+    FileStorage& files() { return files_; }
+
     // Whether the contact has a photo on the card.
     bool hasContactPhoto(uint32_t contact) const { return files_.exists(paths::contactPhoto(contact)); }
 
-    // Removes a contact, their messages, photo and anything waiting to send to them.
+    // Removes a contact, their messages, photo, anything waiting to send to them,
+    // and their voice notes still waiting to download.
     bool removeContact(uint32_t contact);
 
 private:

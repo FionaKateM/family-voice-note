@@ -17,14 +17,17 @@ struct OutboxEntry {
     int64_t queuedAt = 0;    // seconds since 1970, UTC
     uint32_t attempts = 0;   // failed attempts so far
     uint64_t nextAttemptAtMs = 0;  // Clock::millisSinceBoot(); 0 means straight away
+    // Telegram has said it can't deliver to this contact (they've blocked or
+    // stopped the bot) and the admins have been told, so they aren't told again.
+    bool adminsTold = false;
 };
 
 // Recordings waiting to be sent, in order. One small file per entry in /outbox,
 // so adding or removing one never rewrites the others and a power cut can at
 // worst lose the entry being written at that moment.
 //
-// Retry timing (how long to wait after each failure) belongs to ticket 1.7. This
-// only stores the count and the time of the next try.
+// This only stores the count and the time of the next try. How long to wait
+// after each failure is decided in app/messages/Messaging.
 class Outbox {
 public:
     explicit Outbox(FileStorage& files) : files_(files) {}
@@ -36,8 +39,9 @@ public:
 
     // Returns the new entry's sequence number, or 0 if it couldn't be saved.
     uint32_t add(uint32_t contact, uint32_t messageId, int64_t queuedAt);
-    // Records a failed attempt and when to try next.
-    bool recordFailure(uint32_t sequence, uint64_t nextAttemptAtMs);
+    // Records a failed attempt and when to try next. `adminsTold` is only ever
+    // turned on, never back off.
+    bool recordFailure(uint32_t sequence, uint64_t nextAttemptAtMs, bool adminsTold = false);
     // Call once Telegram has the message.
     bool remove(uint32_t sequence);
     // Drops everything for one contact (used when they're removed).

@@ -279,6 +279,10 @@ void Bot::handleMessage(const Message& message) {
 
     if (isCommand) {
         handleCommand(ctx, command, argument, message);
+    } else if (message.kind == MessageKind::Voice && ctx.sender_.roles.isContact() && onMessage_) {
+        // A contact's voice note is always for the child, even partway through
+        // /me or another conversation, which carries on afterwards.
+        onMessage_(ctx, message);
     } else if (hasCurrent_) {
         ConversationType* type = typeNamed(current_.type);
         const uint32_t id = current_.id;

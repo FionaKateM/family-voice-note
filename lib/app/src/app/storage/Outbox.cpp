@@ -45,13 +45,15 @@ bool Outbox::load(const std::string& name, OutboxEntry& out) const {
     out.queuedAt = queuedAt;
     out.attempts = static_cast<uint32_t>(attempts);
     out.nextAttemptAtMs = nextAt;
+    // Added in ticket 1.7. Older entries don't have it.
+    out.adminsTold = f.size() > 5 && f[5] == "1";
     return true;
 }
 
 bool Outbox::save(const OutboxEntry& e) {
     const std::string line =
         text::joinFields({std::to_string(e.contact), std::to_string(e.messageId), std::to_string(e.queuedAt),
-                          std::to_string(e.attempts), std::to_string(e.nextAttemptAtMs)}) +
+                          std::to_string(e.attempts), std::to_string(e.nextAttemptAtMs), e.adminsTold ? "1" : "0"}) +
         "\n";
     // Write then rename, so an entry is never half-written.
     const std::string temp = std::string(paths::kOutboxDir) + "/" + std::to_string(e.sequence) + ".tmp";
@@ -85,11 +87,12 @@ uint32_t Outbox::add(uint32_t contact, uint32_t messageId, int64_t queuedAt) {
     return save(e) ? e.sequence : 0;
 }
 
-bool Outbox::recordFailure(uint32_t sequence, uint64_t nextAttemptAtMs) {
+bool Outbox::recordFailure(uint32_t sequence, uint64_t nextAttemptAtMs, bool adminsTold) {
     OutboxEntry e;
     if (!load(std::to_string(sequence) + kSuffix, e)) return false;
     ++e.attempts;
     e.nextAttemptAtMs = nextAttemptAtMs;
+    if (adminsTold) e.adminsTold = true;
     return save(e);
 }
 
