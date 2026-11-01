@@ -17,6 +17,8 @@ namespace telegram {
 // only person it answers; everyone else is ignored. Then:
 //   /buttons      shows two buttons; pressing one edits the message
 //   /photo        saves your profile photo to the pretend SD card
+//   /mp3          sends testTonePath() as a voice note, to check Telegram
+//                 shows the box's MP3 format as a normal voice bubble
 //   a voice note  is saved, gets a 👀 reaction, and is sent back twice:
 //                 once uploaded with its duration, once re-sent by file ID
 //   anything else is described back to you
@@ -32,6 +34,9 @@ public:
 
     bool hasJoined() const { return chat_ != 0; }
     const std::string& link() const { return link_; }
+    // Where /mp3 expects the test tone on the SD card. The laptop copies
+    // assets/test-audio/test-tone.mp3 here before starting.
+    std::string testTonePath() const { return saveFolder_ + "/test-tone.mp3"; }
 
 private:
     void handle(const Update& update);
@@ -39,6 +44,7 @@ private:
     void handleButton(const CallbackQuery& query);
     void handleVoice(const Message& message);
     void handlePhotoCommand(const Message& message);
+    void handleMp3Command();
     void reply(const std::string& text, const InlineKeyboard* keyboard = nullptr);
     void warn(const std::string& what);
 

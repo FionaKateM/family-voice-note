@@ -53,9 +53,25 @@ It also sorts every incoming message into a kind (voice note, text, photo, photo
 
 These can only be confirmed with a real bot and phone:
 
-1. **MP3 voice notes show as a normal voice bubble.** Telegram's documentation says `sendVoice` accepts MP3, but the box's own MP3 recordings can't be tried until the device (or the laptop mic in ticket 1.11) can record. The try-out below sends back Telegram's own OGG files, which proves the upload path but not MP3.
+1. **MP3 voice notes show as a normal voice bubble.** Telegram's documentation says `sendVoice` accepts MP3, but doesn't promise a voice bubble for every MP3. Send `/mp3` in the try-out below: it uploads a 3 second test tone in the same format the box will record (mono, 16 kHz, 32 kbps constant bitrate) with its duration. On your phone, check that:
+    - it arrives as a voice bubble with a waveform and a play button, not as a music file or a document
+    - it shows as 0:03
+    - it plays a steady beep
+
+    If it comes through as a music file instead, the box's recording format will need to change, so tell Claude what you saw. A real recording from the device is still worth checking once ticket 2.2 can make one.
 2. **The 👀 reaction appears** on your message on your phone.
 3. **Profile photos**: some people's privacy settings hide their photo from bots. The client reports "no photo" in that case, and setup should fall back to asking them to send one.
+
+## The test MP3
+
+`assets/test-audio/test-tone.mp3` is 3 seconds of a 440 Hz tone, made by `scripts/make-test-tone.sh` with ffmpeg:
+
+- mono, 16 kHz, 32 kbps constant bitrate, matching section 14 of the requirements
+- encoded with LAME, not shine. The device is planned to use shine, but ffmpeg's shine support only allows 32, 44.1 and 48 kHz. Both write standard MP3 frames, so Telegram sees the same kind of file.
+- no tags or extra header frames, like the device's own recordings will be
+- 12 KB, which is 32 kbps × 3.1 seconds
+
+To make it again, run `scripts/make-test-tone.sh`. If you change the length, also change `kTestToneSeconds` in `lib/telegram/src/telegram/TryOut.cpp`.
 
 ## Trying it on the laptop
 
@@ -77,6 +93,7 @@ The desktop build has a try-out mode for testing against real Telegram before th
 5. Then try:
     - `/buttons`: two buttons appear. Pressing one should change the message to say which you pressed.
     - `/photo`: saves your profile photo to `desktop-data/sdcard/tryout/profile.jpg`.
+    - `/mp3`: sends you a test tone as an MP3 voice note (see "Checks to do on real Telegram", point 1). Run the program from the repo folder, because it copies `assets/test-audio/test-tone.mp3` onto the pretend SD card when it starts.
     - Send a voice note: it's saved to `desktop-data/sdcard/tryout/`, gets a 👀 reaction, and comes back to you twice (once uploaded again with its length, once re-sent by Telegram's file ID).
     - Anything else (text, sticker, photo): the bot tells you what kind of message it thinks it was.
 6. Stop it with Ctrl+C.
