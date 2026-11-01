@@ -69,7 +69,12 @@
 ## 6. Setup and status screens
 
 - **Setup file:** on first boot, the device reads `setup.txt` from the SD card (Wi-Fi name and password, bot token, child's name, first admin's Telegram ID). It saves these to its internal memory and then **deletes** the file, so the bot token isn't left on the card. To change them later, put a new `setup.txt` on the card.
-- **Wi-Fi:** the device remembers several networks, so it can be set up at one house and then work at another. On boot it tries known networks for 30 seconds. If none work, it starts its own setup Wi-Fi network (`VoiceBox-Setup` plus a short code) with a password shown on the screen. A parent connects with their phone, picks their home Wi-Fi and enters the password.
+  - The first time, the bot token, child's name and admin ID are required. Wi-Fi is optional, because the setup Wi-Fi network can add it instead.
+  - A later `setup.txt` only needs the lines being changed. A Wi-Fi network is added to the known list, an admin is added to the admin list, and a new bot token or child's name replaces the old one.
+  - `ADMIN_ID` can list several people separated by commas (for example the parent and the maintainer).
+  - If the file has a problem (missing or badly formed values), nothing is saved and the file stays on the card to be fixed. The setup problem screen will show this once screens exist.
+  - The file is overwritten with blanks before it's deleted, so the token can't be recovered from the card.
+- **Wi-Fi:** the device remembers several networks (up to 5, forgetting the oldest), so it can be set up at one house and then work at another. On boot it tries known networks for 30 seconds. If none work, it starts its own setup Wi-Fi network (`VoiceBox-Setup` plus a short code) with a password shown on the screen. A parent connects with their phone, picks their home Wi-Fi and enters the password.
 - **Bot check:** once online, the device checks the bot token with Telegram (`getMe`). If it's missing or rejected, the device shows a setup problem screen, the LEDs show amber, and it goes no further.
 - **Offline after setup:** stored messages can still be played and new ones recorded. Sent messages wait in the outbox. A small indicator shows it's offline.
 - All these screens need to make sense to a parent without needing to read much, and should never scare the child.
@@ -80,8 +85,9 @@
 - **Not a voice note:** if a contact sends text, a photo, a sticker, a video, a round video message or a music file, the bot replies "[Child] can only receive voice notes."
 - **Outgoing:** recordings are MP3 and sent with Telegram's `sendVoice`, including the duration, so they show as normal voice note bubbles.
 - **Outbox:** survives power cuts and reboots, sends in order, and retries with longer gaps each time if the network is down.
-- **Folders:** everything is stored by contact, with a small index file per contact so history loads without scanning the card.
-- **Bin:** deleted and re-recorded recordings go to a hidden bin, named with the date, time and contact. Anything older than 30 days is permanently removed.
+- **Folders:** everything is stored by contact, with a small index file per contact so history loads without scanning the card. A recording appears in the child's history as soon as they press Send, marked as waiting until Telegram has it.
+- **Bin:** deleted and re-recorded recordings go to a hidden bin, named with the date, time and contact. Anything older than 30 days is permanently removed. Recordings binned before the clock was ever set are kept, because their real age is unknown.
+- **Limits:** up to 30 contacts, 10 admins and 10 monitors per device.
 - **Keeping messages:** messages older than a set number of days (default 60, 0 means keep forever) are removed from the device. They stay in Telegram on family members' phones.
 - **Storage alert:** admins get a message when the card is 80% full.
 - **Offline alert:** when the device reconnects after more than 24 hours offline, admins get a message such as: "[Child]'s box was offline from Friday 18:00 to Sunday 10:00. Voice notes sent before Saturday 10:00 may not have arrived. Ask family to resend if needed."
@@ -153,8 +159,8 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 | Timezone | Confirm or change the device's timezone | Guessed at setup |
 | Voice volume | Resets the child's playback volume | 70% |
 | Alert volume | Chimes and alerts. Child can't change it | 50% |
-| Max recording | Longest single voice note | 360 seconds |
-| Keep messages | Days before messages are removed from the device | 60 |
+| Max recording | Longest single voice note (10 to 900 seconds) | 360 seconds |
+| Keep messages | Days before messages are removed from the device (0 to 3650, 0 means forever) | 60 |
 | Child's name | Used in bot messages | From setup file |
 | Status (`/status`) | Battery and charging, Wi-Fi strength, storage used (MB and %), firmware version, messages waiting to send | |
 | Last deleted (`/trash getlast`) | Sends the admin the most recent recording from the bin | |
@@ -177,7 +183,7 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 - **Libraries to confirm during the build:** M5Unified, LVGL, ArduinoJson, shine-esp32 for MP3 recording, and an Opus decoder for incoming voice notes (ESP32-audioI2S or libopus). For Telegram, decide in ticket 1.3 whether UniversalTelegramBot handles voice uploads, buttons and reactions well enough, or whether a small custom client is simpler.
 - **Performance:** audio runs on one processor core, and screen and network on the other. The screen and SD card share an SPI bus, so access must be locked. Audio is buffered in PSRAM and written to the card in chunks. Screen and LED updates are limited to 15 to 20 per second while recording.
 - **Telegram:** long polling (`getUpdates`, 25 second timeout) with the connection kept open.
-- **Storage:** settings, secrets and people lists in the ESP32's internal memory (NVS). Messages, photos and indexes on the SD card.
+- **Storage:** settings, secrets and people lists in the ESP32's internal memory (NVS). Messages, photos and indexes on the SD card. The layout is described at the top of `lib/app/src/app/storage/Paths.h`.
 
 ## 15. Risks to prove early
 

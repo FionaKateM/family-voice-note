@@ -20,6 +20,32 @@ void App::begin() {
 
     if (!hw_.files.isMounted()) {
         hw_.log.warning("SD card not available");
+    } else {
+        readSetupFile();
+        // Retry times are measured from start-up, so old ones mean nothing now.
+        storage_.outbox.resetRetryTimes();
+    }
+
+    if (!storage_.settings.hasBotToken()) {
+        hw_.log.warning("No bot token yet. Put a setup.txt on the SD card.");
+    }
+}
+
+void App::readSetupFile() {
+    const SetupResult result = storage_.applySetupFile();
+    // These messages never contain the token, Wi-Fi password or anyone's ID.
+    for (const auto& w : result.warnings) hw_.log.warning("setup.txt: " + w);
+    switch (result.outcome) {
+        case SetupResult::Outcome::NoFile:
+            break;
+        case SetupResult::Outcome::Applied:
+            hw_.log.info("setup.txt read and saved" +
+                         std::string(result.fileDeleted ? ", file deleted" : ", but the file couldn't be deleted"));
+            break;
+        case SetupResult::Outcome::Rejected:
+            for (const auto& p : result.problems) hw_.log.error("setup.txt: " + p);
+            hw_.log.error("setup.txt not used. Fix it and restart.");
+            break;
     }
 }
 
