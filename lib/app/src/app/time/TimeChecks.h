@@ -54,5 +54,7 @@ std::string formatHourMinute(uint16_t minuteOfDay);
 std::string formatHourMinute(const LocalTime& time);
 // "Friday". 0 is Sunday.
 std::string weekdayName(int weekday);
+// "November". 1 is January.
+std::string monthName(int month);
 
 }  // namespace fvb

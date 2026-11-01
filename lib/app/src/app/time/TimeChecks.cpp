@@ -63,4 +63,11 @@ std::string weekdayName(int weekday) {
     return names[weekday];
 }
 
+std::string monthName(int month) {
+    static const char* names[] = {"January", "February", "March",     "April",   "May",      "June",
+                                  "July",    "August",   "September", "October", "November", "December"};
+    if (month < 1 || month > 12) return "";
+    return names[month - 1];
+}
+
 }  // namespace fvb

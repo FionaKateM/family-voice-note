@@ -15,6 +15,11 @@
 //                                              "Laptop"). A name the box hasn't seen before
 //                                              makes it check which country it's in, as it
 //                                              does on the device after moving
+//   .pio/build/desktop/program --battery <n>   pretend to be on battery at n%, to try the
+//                                              low battery alerts (20%, 10% and 5%)
+//   .pio/build/desktop/program --offline-hours <n>
+//                                              pretend the box was last online n hours ago,
+//                                              to try the offline alert (over 24 hours)
 //
 // The box's screen opens in a window. Keys 1, 2 and 3 (or the left, down and
 // right arrows) are the three buttons. Click the screen to tap it, drag across
@@ -64,6 +69,8 @@ int main(int argc, char** argv) {
     bool tryTelegram = false;
     int windowScale = 2;
     std::string wifiName = "Laptop";
+    int battery = -1;       // -1: plugged in, as a laptop normally is
+    long offlineHours = 0;  // 0: don't pretend
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
@@ -74,6 +81,11 @@ int main(int argc, char** argv) {
             setupFile = argv[++i];
         } else if (std::strcmp(argv[i], "--wifi") == 0 && i + 1 < argc) {
             wifiName = argv[++i];
+        } else if (std::strcmp(argv[i], "--battery") == 0 && i + 1 < argc) {
+            battery = std::atoi(argv[++i]);
+            if (battery < 0 || battery > 100) battery = -1;
+        } else if (std::strcmp(argv[i], "--offline-hours") == 0 && i + 1 < argc) {
+            offlineHours = std::atol(argv[++i]);
         } else if (std::strcmp(argv[i], "--try-telegram") == 0) {
             tryTelegram = true;
         } else if (std::strcmp(argv[i], "--scale") == 0 && i + 1 < argc) {
@@ -81,7 +93,8 @@ int main(int argc, char** argv) {
             if (windowScale < 1 || windowScale > 6) windowScale = 2;
         } else {
             std::fprintf(stderr,
-                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--wifi <name>] [--try-telegram]\n",
+                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--wifi <name>] "
+                         "[--battery <n>] [--offline-hours <n>] [--try-telegram]\n",
                          argv[0]);
             return 2;
         }
@@ -96,6 +109,10 @@ int main(int argc, char** argv) {
     fvb::DesktopClock clock;
     fvb::DesktopLeds leds;
     fvb::DesktopPower power;
+    if (battery >= 0) {
+        power.battery = static_cast<int8_t>(battery);
+        power.pluggedIn = false;
+    }
     fvb::DesktopLogger logger;
 
     if (!setupFile.empty()) {
@@ -126,6 +143,7 @@ int main(int argc, char** argv) {
     fvb::App app(hardware);
 
     app.begin();
+    if (offlineHours > 0) app.housekeeping().setLastOnline(clock.unixTime() - offlineHours * 3600);
 
     // Telegram runs on its own thread, the way the device will run network work
     // on its own core (ticket 2.3). Waiting for messages happens without the lock;

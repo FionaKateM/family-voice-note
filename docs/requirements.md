@@ -56,7 +56,10 @@
 ### Sounds and lights
 
 - A chime for every new message, even if the LEDs are already pulsing (except during quiet hours).
-- **Low battery** at 20%, 10% and 5%: a sound plus a distinct LED pattern. Admins also get a Telegram message.
+- **Low battery** at 20%, 10% and 5%: a sound plus a distinct LED pattern. Admins also get a Telegram message. (Ticket 1.9.)
+  - Each level alerts once. It can alert again once the battery has gone 5% above it, normally by being charged, so a wobbly reading doesn't repeat it. A restart doesn't repeat it either.
+  - Nothing is sent while the box is plugged in. A box switched on at 8% gets one alert (for 10%), not two.
+  - During quiet hours admins are still told straight away, but the sound and lights wait until quiet hours end.
 - **Volume:** the child can change voice note volume on the device. The alert volume (chimes, low battery) can only be changed by an admin.
 - **Hearing safety:** hard cap on maximum loudness, whatever the settings. Target no more than 80 to 85 dBA at 0.5 m. Check with a sound meter app.
 - **Levelling:** quiet and loud senders are evened out so they sound roughly the same. The same applies to the mic, so the child's voice comes through clearly whether they're close or far away.
@@ -97,9 +100,14 @@
 - **Folders:** everything is stored by contact, with a small index file per contact so history loads without scanning the card. A recording appears in the child's history as soon as they press Send, marked as waiting until Telegram has it.
 - **Bin:** deleted and re-recorded recordings go to a hidden bin, named with the date, time and contact. Anything older than 30 days is permanently removed. Recordings binned before the clock was ever set are kept, because their real age is unknown.
 - **Limits:** up to 30 contacts, 10 admins and 10 monitors per device.
-- **Keeping messages:** messages older than a set number of days (default 60, 0 means keep forever) are removed from the device. They stay in Telegram on family members' phones.
-- **Storage alert:** admins get a message when the card is 80% full.
-- **Offline alert:** when the device reconnects after more than 24 hours offline, admins get a message such as: "[Child]'s box was offline from Friday 18:00 to Sunday 10:00. Voice notes sent before Saturday 10:00 may not have arrived. Ask family to resend if needed."
+- **Keeping messages:** messages older than a set number of days (default 60, 0 means keep forever) are removed from the device. They stay in Telegram on family members' phones. (Ticket 1.9.)
+  - Messages the child hasn't heard yet, and recordings still waiting to send, are kept however old they are.
+  - Like the bin, messages dated before the clock was ever set are kept. The bin and old messages are cleared once the clock is set after start-up, then once an hour.
+- **Storage alert:** admins get a message when the card is 80% full, saying how to free space with `/keepmessages`. It's sent once, and only comes again after the card has dropped below 75%. (Ticket 1.9.)
+- **Offline alert:** when the device reconnects after more than 24 hours offline, admins get a message such as: "[Child]'s box was offline from Friday 18:00 to Sunday 10:00. Voice notes sent before Saturday 10:00 may not have arrived. Ask family to resend if needed." (Ticket 1.9.)
+  - Being switched off counts as offline. The box saves when it was last online every 5 minutes, so the start time can be up to 5 minutes early.
+  - Times are in the box's timezone (UTC, and saying so, if it isn't set). If it was offline for more than a week, the dates are included as well as the days.
+  - It needs the clock to be set, so it waits until then. There's no alert the very first time the box goes online.
 
 ## 8. Time
 

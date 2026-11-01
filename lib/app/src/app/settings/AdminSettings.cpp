@@ -110,22 +110,6 @@ bool parseMonitorMode(const std::string& typed, MonitorMode& out) {
 
 std::string personName(const Person& p) { return p.name.empty() ? "Someone with no name yet" : p.name; }
 
-std::string thousands(uint64_t n) {
-    std::string digits = std::to_string(n);
-    std::string out;
-    for (size_t i = 0; i < digits.size(); ++i) {
-        if (i > 0 && (digits.size() - i) % 3 == 0) out += ',';
-        out += digits[i];
-    }
-    return out;
-}
-
-const char* monthName(int month) {
-    static const char* kMonths[] = {"January", "February", "March",     "April",   "May",      "June",
-                                    "July",    "August",   "September", "October", "November", "December"};
-    return month >= 1 && month <= 12 ? kMonths[month - 1] : "";
-}
-
 // Puts buttons into rows of `perRow`.
 InlineKeyboard inRows(const std::vector<InlineButton>& buttons, size_t perRow) {
     InlineKeyboard keyboard;
@@ -876,7 +860,7 @@ std::string AdminSettings::statusText() const {
     } else {
         const uint64_t used = files_.usedBytes();
         const uint64_t mb = 1000 * 1000;
-        out += thousands((used + mb / 2) / mb) + " MB of " + thousands(total / mb) + " MB used (" +
+        out += text::thousands((used + mb / 2) / mb) + " MB of " + text::thousands(total / mb) + " MB used (" +
                std::to_string((used * 100 + total / 2) / total) + "%)";
     }
 

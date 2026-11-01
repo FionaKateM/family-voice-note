@@ -66,9 +66,12 @@ class DesktopPower : public Power {
 public:
     int8_t batteryPercent() const override { return battery; }
     bool isCharging() const override { return false; }
-    bool isPluggedIn() const override { return true; }
+    bool isPluggedIn() const override { return pluggedIn; }
 
+    // A laptop counts as plugged in at 100%. The desktop's --battery option
+    // changes these to try the low battery alerts.
     int8_t battery = 100;
+    bool pluggedIn = true;
 };
 
 }  // namespace fvb

@@ -131,7 +131,7 @@ public:
     }
     uint64_t totalBytes() const override { return capacity; }
     uint64_t usedBytes() const override {
-        uint64_t used = 0;
+        uint64_t used = extraUsed;
         for (const auto& entry : files) used += entry.second.size();
         return used;
     }
@@ -139,6 +139,7 @@ public:
     bool mounted = true;
     bool readOnly = false;  // set to make every change fail, like a locked or broken card
     uint64_t capacity = 16ULL * 1024 * 1024 * 1024;
+    uint64_t extraUsed = 0;  // pretend space taken, so tests can fill a big card without big files
     std::map<std::string, std::string> files;
 };
 
