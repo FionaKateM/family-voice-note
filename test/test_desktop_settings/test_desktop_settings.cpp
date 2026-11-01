@@ -74,6 +74,13 @@ void test_rejects_keys_unsafe_as_file_names() {
     TEST_ASSERT_FALSE(store.setString("a.b", "x"));
 }
 
+void test_rejects_values_the_device_would_reject() {
+    DesktopSettingsStore store(tempRoot);
+    TEST_ASSERT_TRUE(store.setString("big", std::string(4000, 'x')));
+    TEST_ASSERT_FALSE(store.setString("too_big", std::string(4001, 'x')));
+    TEST_ASSERT_FALSE(store.has("too_big"));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_strings_round_trip_and_survive_restart);
@@ -83,5 +90,6 @@ int main(int, char**) {
     RUN_TEST(test_remove);
     RUN_TEST(test_rejects_keys_the_device_would_reject);
     RUN_TEST(test_rejects_keys_unsafe_as_file_names);
+    RUN_TEST(test_rejects_values_the_device_would_reject);
     return UNITY_END();
 }

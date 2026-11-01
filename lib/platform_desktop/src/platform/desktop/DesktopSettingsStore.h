@@ -9,7 +9,8 @@ namespace fvb {
 
 // Stands in for the ESP32's internal memory. Each key is a small file in a folder.
 // Keys may only use letters, numbers and "_" (so they're safe as file names),
-// and are limited to 15 characters like the real thing.
+// and are limited to 15 characters like the real thing. Values over 4000 bytes
+// are refused, also like the real thing.
 class DesktopSettingsStore : public SettingsStore {
 public:
     explicit DesktopSettingsStore(std::filesystem::path folder);

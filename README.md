@@ -28,6 +28,12 @@ pio run -e desktop
 
 It keeps its pretend SD card and internal memory in `desktop-data/`, which git ignores.
 
+To give it your setup file, add `--setup`. This copies the file onto the pretend SD card, where the box reads it and deletes the copy. Your original stays put:
+
+```bash
+.pio/build/desktop/program --setup secrets/setup.txt
+```
+
 Build the real device firmware:
 
 ```bash

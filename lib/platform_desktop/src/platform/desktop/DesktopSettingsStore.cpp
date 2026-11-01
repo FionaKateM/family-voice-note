@@ -39,7 +39,7 @@ std::string DesktopSettingsStore::getString(const std::string& key, const std::s
 
 bool DesktopSettingsStore::setString(const std::string& key, const std::string& value) {
     fs::path p;
-    if (!pathFor(key, p)) return false;
+    if (!pathFor(key, p) || !isValidValue(value)) return false;
     std::ofstream out(p, std::ios::binary | std::ios::trunc);
     if (!out) return false;
     out.write(value.data(), static_cast<std::streamsize>(value.size()));

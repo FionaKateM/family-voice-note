@@ -65,10 +65,19 @@ public:
         contents = it->second;
         return true;
     }
-    bool writeFile(const std::string& path, const std::string& contents) override { files[path] = contents; return true; }
-    bool appendFile(const std::string& path, const std::string& contents) override { files[path] += contents; return true; }
-    bool removeFile(const std::string& path) override { return files.erase(path) > 0; }
+    bool writeFile(const std::string& path, const std::string& contents) override {
+        if (readOnly) return false;
+        files[path] = contents;
+        return true;
+    }
+    bool appendFile(const std::string& path, const std::string& contents) override {
+        if (readOnly) return false;
+        files[path] += contents;
+        return true;
+    }
+    bool removeFile(const std::string& path) override { return !readOnly && files.erase(path) > 0; }
     bool renameFile(const std::string& from, const std::string& to) override {
+        if (readOnly) return false;
         auto it = files.find(from);
         if (it == files.end()) return false;
         files[to] = it->second;
@@ -107,6 +116,7 @@ public:
     }
 
     bool mounted = true;
+    bool readOnly = false;  // set to make every change fail, like a locked or broken card
     uint64_t capacity = 16ULL * 1024 * 1024 * 1024;
     std::map<std::string, std::string> files;
 };
@@ -119,7 +129,7 @@ public:
         return it == values.end() ? fallback : it->second;
     }
     bool setString(const std::string& key, const std::string& value) override {
-        if (!isValidKey(key)) return false;
+        if (!isValidKey(key) || !isValidValue(value) || failWrites) return false;
         values[key] = value;
         return true;
     }
@@ -131,6 +141,7 @@ public:
     bool remove(const std::string& key) override { return values.erase(key) > 0; }
 
     std::map<std::string, std::string> values;
+    bool failWrites = false;  // set to pretend the internal memory is broken
 };
 
 class FakeNetwork : public Network {
