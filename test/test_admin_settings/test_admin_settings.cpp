@@ -274,9 +274,11 @@ void test_settings_menu_is_for_admins_only() {
 void test_settings_commands_are_in_admin_help_only() {
     say(kAdmin, "/help");
     const std::string help = lastReply(kAdmin);
-    for (const char* c : {"/settings", "/status", "/trash", "/quiethours", "/timezone", "/volume", "/alertvolume",
-                          "/maxrecording", "/keepmessages", "/childname", "/contacts", "/monitors", "/admins"}) {
-        TEST_ASSERT_TRUE_MESSAGE(contains(help, c), c);
+    for (const char* c : {"/settings", "/status", "/trash"}) TEST_ASSERT_TRUE_MESSAGE(contains(help, c), c);
+    // The single-setting shortcuts still work but aren't listed, to keep /help short.
+    for (const char* c : {"/quiethours", "/timezone", "/volume", "/alertvolume", "/maxrecording", "/keepmessages",
+                          "/childname", "/contacts", "/monitors", "/admins"}) {
+        TEST_ASSERT_FALSE_MESSAGE(contains(help, c), c);
     }
     say(kContact, "/help");
     TEST_ASSERT_FALSE(contains(lastReply(kContact), "/settings"));

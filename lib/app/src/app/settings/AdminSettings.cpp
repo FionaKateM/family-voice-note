@@ -666,13 +666,15 @@ AdminSettings::AdminSettings(Bot& bot, Storage& storage, InviteFlows& invites, F
       menu_(new Menu(*this)) {
     bot_.addConversation(*menu_);
 
+    // Only /settings, /status and /trash are listed in /help, to keep it short.
+    // The rest are shortcuts into the menu for people who prefer typing.
     bot_.addCommand("settings", Roles::kAdmin, "change the box's settings, and add or remove people",
                     [this](Context& ctx, const std::string&) { open(ctx, "main"); });
-    bot_.addCommand("contacts", Roles::kAdmin, "list, invite or remove contacts",
+    bot_.addCommand("contacts", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string&) { open(ctx, "contacts"); });
-    bot_.addCommand("admins", Roles::kAdmin, "list, invite or remove admins",
+    bot_.addCommand("admins", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string&) { open(ctx, "admins"); });
-    bot_.addCommand("monitors", Roles::kAdmin, "list, invite or remove monitors, or /monitors off, sent, received or all",
+    bot_.addCommand("monitors", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string& arg) {
                         MonitorMode mode;
                         if (arg.empty()) return open(ctx, "monitors");
@@ -683,7 +685,7 @@ AdminSettings::AdminSettings(Bot& bot, Storage& storage, InviteFlows& invites, F
                         const std::string done = setMonitorMode(mode);
                         ctx.reply(done.empty() ? "Sorry, I couldn't save that." : done);
                     });
-    bot_.addCommand("quiethours", Roles::kAdmin, "when the box is quiet, e.g. /quiethours 19:00 07:00, or off",
+    bot_.addCommand("quiethours", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string& arg) {
                         if (arg.empty()) return open(ctx, "quiet");
                         std::string a = lower(arg);
@@ -705,7 +707,7 @@ AdminSettings::AdminSettings(Bot& bot, Storage& storage, InviteFlows& invites, F
                         const std::string done = setQuietHours(start, end);
                         ctx.reply(done.empty() ? "Sorry, I couldn't save that." : done);
                     });
-    bot_.addCommand("timezone", Roles::kAdmin, "the box's time zone, e.g. /timezone France",
+    bot_.addCommand("timezone", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string& arg) { open(ctx, "zone", arg); });
     auto volumeCommand = [this](bool alert) {
         return [this, alert](Context& ctx, const std::string& arg) {
@@ -720,10 +722,10 @@ AdminSettings::AdminSettings(Bot& bot, Storage& storage, InviteFlows& invites, F
             ctx.reply(done);
         };
     };
-    bot_.addCommand("volume", Roles::kAdmin, "how loud voice notes play, e.g. /volume 70", volumeCommand(false));
-    bot_.addCommand("alertvolume", Roles::kAdmin, "how loud chimes and alerts are, e.g. /alertvolume 50",
+    bot_.addCommand("volume", Roles::kAdmin, "", volumeCommand(false));
+    bot_.addCommand("alertvolume", Roles::kAdmin, "",
                     volumeCommand(true));
-    bot_.addCommand("maxrecording", Roles::kAdmin, "longest voice note in seconds, e.g. /maxrecording 360",
+    bot_.addCommand("maxrecording", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string& arg) {
                         if (arg.empty()) return open(ctx, "maxrec");
                         uint64_t n = 0;
@@ -732,7 +734,7 @@ AdminSettings::AdminSettings(Bot& bot, Storage& storage, InviteFlows& invites, F
                         ctx.reply(done.empty() ? "Send a number of seconds from 10 to 900, for example /maxrecording 360."
                                                : done);
                     });
-    bot_.addCommand("keepmessages", Roles::kAdmin, "days to keep voice notes on the box, e.g. /keepmessages 60",
+    bot_.addCommand("keepmessages", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string& arg) {
                         if (arg.empty()) return open(ctx, "keep");
                         uint64_t n = 0;
@@ -741,7 +743,7 @@ AdminSettings::AdminSettings(Bot& bot, Storage& storage, InviteFlows& invites, F
                                                  "0 keeps them for ever."
                                                : done);
                     });
-    bot_.addCommand("childname", Roles::kAdmin, "the child's name in the bot's messages",
+    bot_.addCommand("childname", Roles::kAdmin, "",
                     [this](Context& ctx, const std::string& arg) {
                         if (arg.empty()) return open(ctx, "name");
                         std::string problem;

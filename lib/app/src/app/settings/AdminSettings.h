@@ -31,6 +31,9 @@ namespace fvb {
 //   /status                  battery, Wi-Fi, storage, firmware, messages waiting
 //   /trash getlast           sends the most recently deleted recording
 //
+// Only /settings, /status and /trash appear in /help; the others are typing
+// shortcuts into the menu, listed in section 12 of the requirements.
+//
 // Everything here is for admins only. The menu is a conversation, so it carries
 // on after a restart and is dropped if the admin is removed partway through.
 //
