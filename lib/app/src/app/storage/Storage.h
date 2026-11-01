@@ -7,6 +7,7 @@
 #include "app/storage/DeviceSettings.h"
 #include "app/storage/MessageStore.h"
 #include "app/storage/Outbox.h"
+#include "app/storage/Paths.h"
 #include "app/storage/People.h"
 #include "app/storage/SetupFile.h"
 #include "hal/FileStorage.h"
@@ -41,6 +42,9 @@ public:
     // The child pressed delete or re-record. Moves the recording to the bin.
     // Returns the bin path, or "" on failure.
     std::string binRecording(uint32_t contact, const std::string& recordingPath, int64_t now);
+
+    // Whether the contact has a photo on the card.
+    bool hasContactPhoto(uint32_t contact) const { return files_.exists(paths::contactPhoto(contact)); }
 
     // Removes a contact, their messages, photo and anything waiting to send to them.
     bool removeContact(uint32_t contact);

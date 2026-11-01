@@ -26,6 +26,8 @@ struct Sender {
     // this is the same number as userId.
     telegram::ChatId chatId = 0;
     std::string firstName;  // their Telegram first name
+    std::string lastName;   // may be empty
+    std::string username;   // without the @, may be empty
     Roles roles;
 };
 
@@ -82,7 +84,9 @@ private:
 // to the right handler:
 //
 //   1. Anyone who isn't in a list and isn't partway through an invite is ignored,
-//      with no reply. Group chats and other bots are ignored too.
+//      with no reply, unless the stranger handler knows them (someone whose
+//      invite setup was stopped or forgotten, or who's waiting for approval).
+//      Group chats and other bots are ignored completely.
 //   2. "/start <code>" goes to the start link handler (invites, ticket 1.5).
 //   3. /cancel stops the conversation they're in.
 //   4. Other commands go to the handler registered for them, if the person has
@@ -122,6 +126,7 @@ public:
     using ButtonHandler = std::function<void(Context&, const std::string& data)>;
     using StartLinkHandler = std::function<bool(Context&, const std::string& code)>;
     using MessageHandler = std::function<void(Context&, const telegram::Message&)>;
+    using StrangerHandler = std::function<bool(Context&)>;
 
     Bot(telegram::TelegramClient& client, Storage& storage, SettingsStore& store, Clock& clock, Logger& log);
 
@@ -166,6 +171,12 @@ public:
     // Called for messages from known people that aren't commands and aren't part
     // of a conversation. By default it points them at /help.
     void setMessageHandler(MessageHandler handler) { onMessage_ = std::move(handler); }
+    // Called when someone who isn't on any list and isn't in a conversation
+    // sends a message or presses a button (other than a recognised invite link).
+    // Return true if they were dealt with; return false, without replying, to
+    // keep ignoring them. For a button press, true answers it with "This has
+    // finished." By default everyone is ignored.
+    void setStrangerHandler(StrangerHandler handler) { onStranger_ = std::move(handler); }
 
     // For tests and /status.
     ConversationStore& conversations() { return conversations_; }
@@ -193,6 +204,7 @@ private:
     // Loads the sender's conversation into current_, dropping it if it has
     // timed out or they're no longer allowed in it.
     void loadConversation(const Sender& sender);
+    void timedOut(const ConversationState& state, int64_t now);
     void runStep(Context& ctx, ConversationType::Outcome outcome, uint32_t idBefore);
     void endConversation();
     void saveConversation();
@@ -220,6 +232,7 @@ private:
     std::vector<ConversationType*> types_;
     StartLinkHandler startLink_;
     MessageHandler onMessage_;
+    StrangerHandler onStranger_;
 
     // The conversation of the person currently being dealt with.
     bool hasCurrent_ = false;

@@ -103,17 +103,18 @@ bool ConversationStore::remove(int64_t userId) {
     return saveAll(states);
 }
 
-size_t ConversationStore::removeExpired(int64_t now, int64_t maxAgeSeconds) {
-    if (now <= 0) return 0;
-    auto states = all();
-    const auto before = states.size();
-    states.erase(std::remove_if(states.begin(), states.end(),
-                                [&](const ConversationState& s) {
-                                    return s.lastActive > 0 && now - s.lastActive > maxAgeSeconds;
-                                }),
-                 states.end());
-    const size_t dropped = before - states.size();
-    if (dropped > 0) saveAll(states);
+std::vector<ConversationState> ConversationStore::removeExpired(int64_t now, int64_t maxAgeSeconds) {
+    std::vector<ConversationState> dropped;
+    if (now <= 0) return dropped;
+    std::vector<ConversationState> kept;
+    for (const auto& s : all()) {
+        if (s.lastActive > 0 && now - s.lastActive > maxAgeSeconds) {
+            dropped.push_back(s);
+        } else {
+            kept.push_back(s);
+        }
+    }
+    if (!dropped.empty()) saveAll(kept);
     return dropped;
 }
 

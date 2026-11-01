@@ -25,8 +25,8 @@ public:
     bool save(const ConversationState& state);
     bool remove(int64_t userId);
     // Drops conversations quiet for longer than maxAgeSeconds. Ones saved before
-    // the clock was set are left alone. Returns how many were dropped.
-    size_t removeExpired(int64_t now, int64_t maxAgeSeconds);
+    // the clock was set are left alone. Returns the ones dropped.
+    std::vector<ConversationState> removeExpired(int64_t now, int64_t maxAgeSeconds);
 
     // A new conversation ID. Never reused.
     uint32_t nextId();
