@@ -36,10 +36,12 @@
 
 #include "app/App.h"
 #include "app/bot/Bot.h"
+#include "app/invites/InviteFlows.h"
 #include "platform/desktop/DesktopAudio.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
 #include "platform/desktop/DesktopNetwork.h"
+#include "platform/desktop/DesktopRandom.h"
 #include "platform/desktop/DesktopSettingsStore.h"
 #include "platform/desktop/DesktopWindow.h"
 #include "platform/desktop/PixelCanvas.h"
@@ -120,6 +122,8 @@ int main(int argc, char** argv) {
     std::thread telegramThread;
     fvb::telegram::TelegramClient telegramClient(network, files, logger, app.storage().settings.botToken());
     fvb::Bot bot(telegramClient, app.storage(), settings, clock, logger);
+    fvb::DesktopRandom random;
+    fvb::InviteFlows inviteFlows(bot, app.storage(), settings, random);
 
     // Ctrl+C abandons a request only while connecting or waiting for new
     // messages. A reply that's being sent is let finish, so a message is never

@@ -61,6 +61,14 @@ public:
     virtual Outcome onMessage(Context& ctx, ConversationState& state, const telegram::Message& message) = 0;
     // They pressed a button made with Context::button during this conversation.
     virtual Outcome onButton(Context& ctx, ConversationState& state, const std::string& value) = 0;
+
+    // The conversation was forgotten after a week with no reply. There's nobody
+    // to talk to at this point; it's for tidying up or remembering to tell them
+    // later. `now` is seconds since 1970 (UTC).
+    virtual void onTimedOut(const ConversationState& state, int64_t now) {
+        (void)state;
+        (void)now;
+    }
 };
 
 }  // namespace fvb
