@@ -150,7 +150,7 @@ void Screens::drawStarting() {
     Display& d = hw_.display;
     d.clear();
     centredText(d, kWidth / 2, 90, "Family Voice Box", kWhite, 2);
-    centredText(d, kWidth / 2, 130, std::string("v") + kFirmwareVersion, kGrey, 2);
+    centredText(d, kWidth / 2, 130, "v" + firmwareVersion(), kGrey, 2);
 }
 
 void Screens::drawNoContacts() {

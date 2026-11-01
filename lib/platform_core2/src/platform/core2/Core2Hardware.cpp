@@ -22,6 +22,8 @@ int64_t Core2Clock::unixTime() const {
 
 void Core2Clock::sleepMs(uint32_t ms) { delay(ms); }
 
+void Core2PlaceholderFirmwareInstaller::restart() { ESP.restart(); }
+
 void Core2Clock::startInternetTime() {
     // Offsets of 0: the system clock stays in UTC.
     configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");

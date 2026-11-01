@@ -15,6 +15,12 @@
 //                                              "Laptop"). A name the box hasn't seen before
 //                                              makes it check which country it's in, as it
 //                                              does on the device after moving
+//   .pio/build/desktop/program --release-folder <folder>
+//                                              look for updates in a folder made by
+//                                              scripts/make-release.sh instead of on GitHub
+//   .pio/build/desktop/program --undo-update   act as if the last pretend update didn't
+//                                              start properly, so the box went back to the
+//                                              version it was on before
 //
 // The box's screen opens in a window. Keys 1, 2 and 3 (or the left, down and
 // right arrows) are the three buttons. Click the screen to tap it, drag across
@@ -26,6 +32,7 @@
 // The data folder (default "desktop-data") holds:
 //   sdcard/  stands in for the SD card
 //   nvs/     stands in for the ESP32's internal memory
+//   firmware/ the last pretend update (see DesktopFirmwareInstaller)
 
 #include <atomic>
 #include <cstdlib>
@@ -39,15 +46,18 @@
 #include <vector>
 
 #include "app/App.h"
+#include "app/Version.h"
 #include "app/bot/Bot.h"
 #include "app/invites/InviteFlows.h"
 #include "app/messages/Messaging.h"
 #include "app/settings/AdminSettings.h"
 #include "app/settings/MovedCountry.h"
 #include "app/time/Location.h"
+#include "app/updates/Updates.h"
 #include "platform/desktop/DesktopAudio.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
+#include "platform/desktop/DesktopFirmwareInstaller.h"
 #include "platform/desktop/DesktopNetwork.h"
 #include "platform/desktop/DesktopRandom.h"
 #include "platform/desktop/DesktopSettingsStore.h"
@@ -64,6 +74,8 @@ int main(int argc, char** argv) {
     bool tryTelegram = false;
     int windowScale = 2;
     std::string wifiName = "Laptop";
+    std::string releaseFolder;
+    bool undoUpdate = false;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
@@ -74,6 +86,11 @@ int main(int argc, char** argv) {
             setupFile = argv[++i];
         } else if (std::strcmp(argv[i], "--wifi") == 0 && i + 1 < argc) {
             wifiName = argv[++i];
+        } else if (std::strcmp(argv[i], "--release-folder") == 0 && i + 1 < argc) {
+            std::error_code ec;
+            releaseFolder = std::filesystem::absolute(argv[++i], ec).string();
+        } else if (std::strcmp(argv[i], "--undo-update") == 0) {
+            undoUpdate = true;
         } else if (std::strcmp(argv[i], "--try-telegram") == 0) {
             tryTelegram = true;
         } else if (std::strcmp(argv[i], "--scale") == 0 && i + 1 < argc) {
@@ -81,7 +98,8 @@ int main(int argc, char** argv) {
             if (windowScale < 1 || windowScale > 6) windowScale = 2;
         } else {
             std::fprintf(stderr,
-                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--wifi <name>] [--try-telegram]\n",
+                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--wifi <name>]\n"
+                         "          [--release-folder <folder>] [--undo-update] [--try-telegram]\n",
                          argv[0]);
             return 2;
         }
@@ -97,6 +115,16 @@ int main(int argc, char** argv) {
     fvb::DesktopLeds leds;
     fvb::DesktopPower power;
     fvb::DesktopLogger logger;
+
+    // After a pretend update, act as that version (unless this build is newer).
+    fvb::DesktopFirmwareInstaller installer(dataFolder / "firmware", logger);
+    if (undoUpdate) installer.forget();
+    const std::string pretendVersion = installer.installedVersion();
+    if (fvb::version::isNewer(pretendVersion, fvb::kFirmwareVersion)) {
+        fvb::setPretendFirmwareVersion(pretendVersion);
+    } else if (!pretendVersion.empty()) {
+        installer.forget();
+    }
 
     if (!setupFile.empty()) {
         std::error_code ec;
@@ -139,6 +167,10 @@ int main(int argc, char** argv) {
     fvb::AdminSettings adminSettings(bot, app.storage(), inviteFlows, files, network, power);
     fvb::MovedCountry movedCountry(bot, telegramClient, app.storage(), settings, logger);
     bool locationChecked = false;
+    fvb::Updates updates(bot, telegramClient, app.storage(), settings, clock, logger, network, installer,
+                         releaseFolder.empty() ? fvb::ReleaseLocation::github()
+                                               : fvb::ReleaseLocation::folder(releaseFolder));
+    bool updateReported = false;
 
     // Sending (the outbox, downloads, 👀 reactions, monitor copies) has its own
     // connection and thread, so it never waits behind the bot's long poll.
@@ -165,6 +197,13 @@ int main(int argc, char** argv) {
                     std::lock_guard<std::mutex> lock(boxLock);
                     bot.resume();
                     waitMs = 0;
+                } else if (!updateReported) {
+                    // Once connected after starting: say how an update went, if
+                    // there was one, and keep the firmware that's running.
+                    updateReported = true;
+                    std::lock_guard<std::mutex> lock(boxLock);
+                    updates.afterStart();
+                    waitMs = 0;
                 } else if (!locationChecked) {
                     // Once connected: if this is a different Wi-Fi network from
                     // last time, check whether the box has moved country. Asking
@@ -182,15 +221,29 @@ int main(int argc, char** argv) {
                     }
                     waitMs = 0;
                 } else {
-                    std::vector<fvb::telegram::Update> updates;
+                    // Checking for and installing updates. Talking to GitHub
+                    // happens without the lock, like the location check.
+                    fvb::Updates::Task updateTask;
+                    {
+                        std::lock_guard<std::mutex> lock(boxLock);
+                        updateTask = updates.prepare();
+                    }
+                    if (updateTask.kind != fvb::Updates::Task::Kind::None) {
+                        const fvb::Updates::Result result = updates.run(updateTask);
+                        std::lock_guard<std::mutex> lock(boxLock);
+                        updates.finish(updateTask, result);  // stops the program after an install
+                        continue;
+                    }
+
+                    std::vector<fvb::telegram::Update> received;
                     telegramWaiting = true;
-                    waitMs = bot.poll(updates);
+                    waitMs = bot.poll(received);
                     telegramWaiting = false;
                     // Anything just received is left for next time: Telegram
                     // sends it again because the box never confirmed it.
                     if (fvb::stopRequested()) break;
                     std::lock_guard<std::mutex> lock(boxLock);
-                    bot.handle(updates);
+                    bot.handle(received);
                 }
                 // Wait in small pieces so Ctrl+C is noticed quickly.
                 for (uint32_t waited = 0; waited < waitMs && !fvb::stopRequested(); waited += 100) {

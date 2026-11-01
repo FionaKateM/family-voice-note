@@ -224,6 +224,7 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 - On Yes, it downloads over HTTPS, checks the file is intact (checksum), installs, restarts and reports "Updated to 1.3".
 - **Rollback:** if the new version doesn't start properly and reconnect to Telegram within a few minutes, the device goes back to the previous version and tells the admins.
 - Each family's admins update their own devices. The maintainer, as an admin on all devices, can also update any of them.
+- **How it works (ticket 1.10):** each release carries the firmware and a small `firmware.json` (version, note on what's new, size and SHA-256 checksum). Releases are published from the Actions tab, by hand, after bumping the version in `lib/app/src/app/Version.h`. Each new version is announced to admins once, not every day. The note on what's new is cut to 300 characters. After an update, the admin who said yes gets "Updated to 1.3" and the other admins are told who updated it. `/update` isn't listed in `/help`; the daily message tells admins about it. Details, and how to try it on the laptop, are in `docs/updates.md`.
 
 ## 14. Technical approach
 

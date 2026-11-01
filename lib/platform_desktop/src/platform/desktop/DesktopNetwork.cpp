@@ -2,7 +2,9 @@
 
 #include <curl/curl.h>
 
+#include <fstream>
 #include <mutex>
+#include <vector>
 
 namespace fvb {
 
@@ -37,6 +39,31 @@ size_t onData(char* data, size_t size, size_t count, void* userData) {
     return length;
 }
 
+// file:// addresses, for trying updates from a folder on the laptop
+// (--release-folder). Answers like a web server would: 200 with the file, or 404.
+HttpResponse readLocalFile(const HttpRequest& request) {
+    HttpResponse response;
+    const std::string path = request.url.substr(7);
+    std::ifstream in(path, std::ios::binary);
+    if (!in) {
+        response.status = 404;
+        return response;
+    }
+    response.status = 200;
+    std::vector<char> piece(16 * 1024);
+    while (in) {
+        in.read(piece.data(), static_cast<std::streamsize>(piece.size()));
+        const size_t got = static_cast<size_t>(in.gcount());
+        if (got == 0) break;
+        if (request.onBodyChunk) {
+            if (!request.onBodyChunk(piece.data(), got)) break;
+        } else {
+            response.body.append(piece.data(), got);
+        }
+    }
+    return response;
+}
+
 }  // namespace
 
 DesktopNetwork::DesktopNetwork() {
@@ -50,6 +77,8 @@ DesktopNetwork::~DesktopNetwork() {
 }
 
 HttpResponse DesktopNetwork::request(const HttpRequest& request) {
+    if (request.url.rfind("file://", 0) == 0) return readLocalFile(request);
+
     HttpResponse response;
     CURL* curl = static_cast<CURL*>(curl_);
     if (!curl) {
@@ -71,6 +100,15 @@ HttpResponse DesktopNetwork::request(const HttpRequest& request) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 15000L);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+    if (request.followRedirects) {
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
+#if LIBCURL_VERSION_NUM >= 0x075500
+        curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "https");
+#else
+        curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS, static_cast<long>(CURLPROTO_HTTPS));
+#endif
+    }
     if (cancelCheck_) {
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, onProgress);

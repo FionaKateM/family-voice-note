@@ -10,10 +10,13 @@ namespace fvb {
 
 struct HttpRequest {
     std::string method = "GET";
-    std::string url;  // always HTTPS
+    std::string url;  // always HTTPS (the desktop build also reads file:// for trying updates)
     std::map<std::string, std::string> headers;
     std::string body;
     uint32_t timeoutMs = 30000;
+    // Follow redirects (to HTTPS addresses only). GitHub answers requests for
+    // release files with a redirect to where the file is actually kept.
+    bool followRedirects = false;
 
     // Optional. When set, the response body is handed over in pieces as it
     // arrives instead of being collected in HttpResponse::body. Used to download

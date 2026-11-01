@@ -7,7 +7,7 @@
 namespace fvb {
 
 void App::begin() {
-    hw_.log.info(std::string("Family Voice Box ") + kFirmwareVersion + " starting");
+    hw_.log.info("Family Voice Box " + firmwareVersion() + " starting");
 
     hw_.leds.setAll(Colour{0, 0, 0});
     hw_.leds.show();

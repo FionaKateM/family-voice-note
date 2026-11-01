@@ -68,6 +68,8 @@ To pretend the box has moved to a different Wi-Fi network, add `--wifi` with any
 .pio/build/desktop/program --wifi Holiday
 ```
 
+To try `/update` without publishing a real release, see [docs/updates.md](docs/updates.md#trying-it-on-the-laptop).
+
 Build the real device firmware:
 
 ```bash
@@ -75,6 +77,8 @@ pio run -e core2
 ```
 
 GitHub Actions runs all of these, plus a check for secrets, on every push.
+
+Releases are published by hand from the Actions tab. See [docs/updates.md](docs/updates.md#publishing-a-new-version).
 
 ### Stopping secrets being committed
 
