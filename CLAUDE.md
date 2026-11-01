@@ -33,7 +33,7 @@ Also keep personal details out: no children's names, family members' names or ho
 
 1. Read the ticket in `docs/build-plan.md` and the relevant sections of `docs/requirements.md`.
 2. If something is ambiguous or seems wrong, ask Fiona before building on it.
-3. Work on a branch named `ticket-<number>-<short-name>` (e.g. `ticket-1.2-storage`).
+3. Work on a branch. If the session hasn't already set one up, name it `ticket-<number>-<short-name>` (e.g. `ticket-1.2-storage`). Put the ticket number in the pull request title.
 4. Write tests alongside the code. Logic that doesn't touch hardware must be testable on the desktop build.
 5. Finish with all tests passing, then open a pull request.
 6. In the pull request, include a short plain-English summary for Fiona: what was built, how to try it, and anything that changed from the requirements or that she needs to decide.
