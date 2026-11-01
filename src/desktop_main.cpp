@@ -7,8 +7,14 @@
 //   .pio/build/desktop/program --ticks <n>     stop after n loops (used by CI)
 //   .pio/build/desktop/program --setup <file>  copy a setup file onto the pretend SD card
 //                                              first, e.g. --setup secrets/setup.txt
+//   .pio/build/desktop/program --scale <n>     make the window n times the real screen size
+//                                              (default 2)
 //   .pio/build/desktop/program --try-telegram  run a test bot against real Telegram
 //                                              instead of the box (see docs/telegram.md)
+//
+// The box's screen opens in a window. Keys 1, 2 and 3 (or the left, down and
+// right arrows) are the three buttons. Click the screen to tap it, drag across
+// it to swipe. Closing the window stops the box. Sound needs ffmpeg installed.
 //
 // --setup copies the file rather than moving it, because the box deletes setup.txt
 // from its card once read. Your original stays where it is.
@@ -31,11 +37,14 @@
 #include "app/App.h"
 #include "app/bot/Bot.h"
 #include "app/invites/InviteFlows.h"
+#include "platform/desktop/DesktopAudio.h"
 #include "platform/desktop/DesktopBasics.h"
 #include "platform/desktop/DesktopFileStorage.h"
 #include "platform/desktop/DesktopNetwork.h"
 #include "platform/desktop/DesktopRandom.h"
 #include "platform/desktop/DesktopSettingsStore.h"
+#include "platform/desktop/DesktopWindow.h"
+#include "platform/desktop/PixelCanvas.h"
 #include "platform/desktop/StopRequest.h"
 #include "platform/desktop/TryTelegram.h"
 #include "telegram/TelegramClient.h"
@@ -45,6 +54,7 @@ int main(int argc, char** argv) {
     long maxTicks = -1;
     std::filesystem::path setupFile;
     bool tryTelegram = false;
+    int windowScale = 2;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--data") == 0 && i + 1 < argc) {
@@ -55,8 +65,12 @@ int main(int argc, char** argv) {
             setupFile = argv[++i];
         } else if (std::strcmp(argv[i], "--try-telegram") == 0) {
             tryTelegram = true;
+        } else if (std::strcmp(argv[i], "--scale") == 0 && i + 1 < argc) {
+            windowScale = std::atoi(argv[++i]);
+            if (windowScale < 1 || windowScale > 6) windowScale = 2;
         } else {
-            std::fprintf(stderr, "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--try-telegram]\n",
+            std::fprintf(stderr,
+                         "Usage: %s [--data <folder>] [--ticks <n>] [--setup <file>] [--scale <n>] [--try-telegram]\n",
                          argv[0]);
             return 2;
         }
@@ -64,15 +78,12 @@ int main(int argc, char** argv) {
 
     fvb::installStopHandler();
 
-    fvb::DesktopPlaceholderAudio audio;
-    fvb::DesktopTerminalDisplay display;
     fvb::DesktopFileStorage files(dataFolder / "sdcard");
     fvb::DesktopSettingsStore settings(dataFolder / "nvs");
     fvb::DesktopNetwork network;
     fvb::DesktopClock clock;
     fvb::DesktopLeds leds;
     fvb::DesktopPower power;
-    fvb::DesktopPlaceholderInput input;
     fvb::DesktopLogger logger;
 
     if (!setupFile.empty()) {
@@ -86,6 +97,18 @@ int main(int argc, char** argv) {
     }
 
     if (tryTelegram) return fvb::runTelegramTryOut(dataFolder);
+
+    // The screen, buttons and LEDs, in a window.
+    fvb::PixelCanvas display;
+    fvb::DesktopWindow window(display, leds);
+    std::string windowError;
+    if (!window.open(windowScale, windowError)) {
+        std::fprintf(stderr, "Couldn't open the window: %s\n", windowError.c_str());
+        return 1;
+    }
+    fvb::DesktopWindowInput input(window);
+    fvb::DesktopAudio audio(dataFolder / "sdcard", logger);
+    audio.begin();  // if sound doesn't work, the box carries on without it
 
     fvb::Hardware hardware{audio, display, files, settings, network, clock, leds, power, input, logger};
     fvb::App app(hardware);

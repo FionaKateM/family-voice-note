@@ -24,14 +24,18 @@ jobs:
           path: ~/.platformio
           key: pio-desktop-${{ hashFiles('platformio.ini') }}
       - run: pip install platformio==6.2.0
-      - name: Install libcurl (used by the desktop build for HTTPS)
-        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+      - name: Install libcurl, SDL2 and ffmpeg (the desktop build's HTTPS, window and sound)
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libsdl2-dev ffmpeg
       - name: Run tests
         run: pio test -e desktop
       - name: Build
         run: pio run -e desktop
       - name: Start the desktop box briefly
-        run: .pio/build/desktop/program --data "$RUNNER_TEMP/box" --ticks 5
+        # There's no screen or sound card here, so SDL pretends to have them.
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: .pio/build/desktop/program --data "$RUNNER_TEMP/box" --ticks 200
 
   core2:
     name: Core2 firmware compiles

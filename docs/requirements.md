@@ -44,10 +44,11 @@
 - Re-record and delete need a confirmation that works without reading. Both move the recording to the bin rather than deleting it.
 - Send saves the recording to the outbox and goes straight back to the home screen. Sending happens in the background.
 - Once sent, the child can't delete a message.
+- If review is left alone for 2 minutes (nothing pressed, nothing playing), the recording goes to the bin and the box returns to the home screen. A parent can still get it back with `/trash getlast`. (Decided in ticket 1.11; tune on the device.)
 
 ### Listening
 
-- Play the latest message from the current contact.
+- Play the current contact's oldest unread message, so none get skipped. If everything has been heard, play their latest message. (Changed in ticket 1.11 from "the latest message", which would skip earlier unread ones.)
 - History: a scrollable list of past messages with that contact, sent and received, tap to play.
 - When the child plays a received message to the end, the sender gets a reaction on their message in Telegram (👀). Telegram only allows reactions from a fixed list of emoji; 👀 is on it (confirmed in ticket 1.3).
 
@@ -209,7 +210,7 @@ Admins send `/settings` to get a menu of buttons. The direct commands also work 
 
 - PlatformIO, Arduino framework, C++.
 - **Two builds from the same code:** the device build, and a desktop build that runs on a laptop. All hardware is reached through small interfaces (audio, screen, SD card, internal memory, network, clock, LEDs, power, buttons and touch, logging), so all the logic can be run and tested on a laptop.
-- **The desktop build is a working box:** it talks to real Telegram, uses a folder as its SD card, shows the screen in a 320×240 window, and uses the laptop's mic and speakers.
+- **The desktop build is a working box:** it talks to real Telegram, uses a folder as its SD card, shows the screen in a 320×240 window, and uses the laptop's mic and speakers. The window, keyboard, mouse and sound use SDL2; ffmpeg reads voice notes and writes MP3 recordings. Neither is used on the device.
 - **Libraries to confirm during the build:** M5Unified, LVGL, ArduinoJson, shine-esp32 for MP3 recording, and an Opus decoder for incoming voice notes (ESP32-audioI2S or libopus).
 - **Telegram client:** a small client of our own (`lib/telegram`) built on the network interface, not UniversalTelegramBot, so it runs and is tested on the desktop build. Decided in ticket 1.3; reasons in `docs/telegram.md`.
 - **Performance:** audio runs on one processor core, and screen and network on the other. The screen and SD card share an SPI bus, so access must be locked. Audio is buffered in PSRAM and written to the card in chunks. Screen and LED updates are limited to 15 to 20 per second while recording.

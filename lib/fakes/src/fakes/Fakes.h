@@ -17,11 +17,20 @@ namespace fakes {
 
 class FakeAudio : public Audio {
 public:
-    bool play(const std::string& path) override { playing = path; return true; }
+    bool play(const std::string& path) override {
+        if (!canPlay) return false;
+        playing = path;
+        ++playCount;
+        return true;
+    }
     void stopPlayback() override { playing.clear(); }
     bool isPlaying() const override { return !playing.empty(); }
     void setVolume(uint8_t percent) override { volume = percent; }
-    bool startRecording(const std::string& path) override { recording = path; return true; }
+    bool startRecording(const std::string& path) override {
+        if (!canRecord) return false;
+        recording = path;
+        return true;
+    }
     uint32_t stopRecording() override { recording.clear(); return nextRecordingMs; }
     bool isRecording() const override { return !recording.empty(); }
     uint8_t inputLevel() const override { return level; }
@@ -31,6 +40,9 @@ public:
     uint8_t volume = 0;
     uint8_t level = 0;
     uint32_t nextRecordingMs = 0;
+    bool canPlay = true;
+    bool canRecord = true;
+    int playCount = 0;
 };
 
 class FakeDisplay : public Display {
@@ -39,9 +51,16 @@ public:
     uint16_t height() const override { return 240; }
     void setOn(bool value) override { on = value; }
     void setBrightness(uint8_t percent) override { brightness = percent; }
-    void clear() override { pending.clear(); }
-    void drawText(int16_t, int16_t, const std::string& text) override { pending.push_back(text); }
-    void present() override { shown = pending; ++presentCount; }
+    void clear() override { pending.clear(); pendingShapes = 0; }
+    void fillRect(int16_t, int16_t, int16_t, int16_t, Colour) override { ++pendingShapes; }
+    void fillCircle(int16_t, int16_t, int16_t, Colour) override { ++pendingShapes; }
+    void fillTriangle(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, Colour) override { ++pendingShapes; }
+    void drawText(int16_t, int16_t, const std::string& text, Colour, uint8_t) override { pending.push_back(text); }
+    int16_t textWidth(const std::string& text, uint8_t size) const override {
+        return static_cast<int16_t>(text.size() * 6 * size);
+    }
+    int16_t textHeight(uint8_t size) const override { return static_cast<int16_t>(8 * size); }
+    void present() override { shown = pending; shownShapes = pendingShapes; ++presentCount; }
 
     bool shows(const std::string& text) const {
         return std::any_of(shown.begin(), shown.end(),
@@ -52,6 +71,8 @@ public:
     uint8_t brightness = 100;
     std::vector<std::string> pending;
     std::vector<std::string> shown;
+    int pendingShapes = 0;
+    int shownShapes = 0;  // shapes in the last screen shown
     int presentCount = 0;
 };
 
@@ -222,6 +243,19 @@ public:
         InputEvent e;
         e.type = InputEvent::Type::ButtonPress;
         e.button = button;
+        queue.push_back(e);
+    }
+    void tap(int16_t x, int16_t y) {
+        InputEvent e;
+        e.type = InputEvent::Type::Tap;
+        e.x = x;
+        e.y = y;
+        queue.push_back(e);
+    }
+    void swipe(SwipeDirection direction) {
+        InputEvent e;
+        e.type = InputEvent::Type::Swipe;
+        e.swipe = direction;
         queue.push_back(e);
     }
 
