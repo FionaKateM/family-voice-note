@@ -62,6 +62,12 @@ To give it your setup file, add `--setup`. This copies the file onto the pretend
 
 Once a bot token has been saved this way, the box answers on Telegram while it runs. To try it from your phone with a test bot, see [docs/telegram.md](docs/telegram.md#trying-it-on-the-laptop).
 
+To pretend the box has moved to a different Wi-Fi network, add `--wifi` with any new name. The box then checks which country it's in, as the device will after moving house (see [docs/time.md](docs/time.md#moving-country)):
+
+```bash
+.pio/build/desktop/program --wifi Holiday
+```
+
 Build the real device firmware:
 
 ```bash

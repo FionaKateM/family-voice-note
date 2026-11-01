@@ -42,6 +42,9 @@ public:
     ~InviteFlows();
 
     InviteStore& invites() { return invites_; }
+    // Sends the admin an invite link for the role, as /addcontact and friends
+    // do. Also used by the /settings menu.
+    void makeInvite(Context& ctx, InviteRole role);
     PendingStore& pending() { return pending_; }
 
     // Conversation names. Saved with conversations, so never change them.
@@ -56,7 +59,6 @@ private:
     friend class ContactDetails;
     friend class JoinRole;
 
-    void makeInvite(Context& ctx, InviteRole role);
     std::string newCode();
     bool onStartLink(Context& ctx, const std::string& code);
     bool onStranger(Context& ctx);

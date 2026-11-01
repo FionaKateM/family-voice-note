@@ -119,6 +119,13 @@ void ask(Context& ctx, const std::string& question, const std::vector<std::strin
     ctx.reply(question + " Tap it, or type its name.", &keyboard);
 }
 
+std::string askCity(Context& ctx, const std::string& countryCode) {
+    const CountryInfo* c = timezones::findCountry(countryCode);
+    if (!c) return "";
+    if (const TimeZoneInfo* only = timezones::onlyZoneIn(*c)) return only->name;
+    return chooseCountry(ctx, *c, false);
+}
+
 bool owns(const std::string& value) { return value.compare(0, 3, kPrefix) == 0; }
 
 std::string onButton(Context& ctx, const std::string& value) {

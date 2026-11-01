@@ -45,6 +45,10 @@ public:
     virtual bool isConnected() const = 0;
     // Wi-Fi signal strength in dBm (e.g. -60). 0 if not connected or not Wi-Fi.
     virtual int8_t signalStrength() const = 0;
+    // The name of the Wi-Fi network it's on, or "" if it isn't on Wi-Fi or
+    // can't tell. Used to notice the box has moved somewhere new, so it can
+    // check which country it's in (section 8 of the requirements).
+    virtual std::string wifiName() const { return ""; }
     virtual HttpResponse request(const HttpRequest& request) = 0;
 };
 
