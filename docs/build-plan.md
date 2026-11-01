@@ -22,11 +22,11 @@ Goal: a working box on a laptop that talks to real Telegram. Everything except t
 
 **1.5 Invite and setup flows.** Contact, monitor and admin invites, the contact setup conversation, admin approval, and `/me` for contacts.
 
-**1.6 Admin settings.** The `/settings` button menu and direct commands, the timezone picker (country then city), `/status` and `/trash getlast`.
+**1.6 Admin settings.** The `/settings` button menu and direct commands, the timezone picker (country then city), the moved-country prompt (see section 8 of the requirements), `/status` and `/trash getlast`.
 
 **1.7 Message handling.** Storing incoming voice notes and marking them unread, the voice-only auto-reply, the outbox with retries, read reactions, and monitor copies.
 
-**1.8 Time.** Internet clock, timezones and daylight saving, quiet hours that cross midnight, the contact asleep check, and the timezone guess from the internet connection at setup. (The moved-country prompt was dropped: parents change the timezone in `/settings` instead.)
+**1.8 Time.** Internet clock, timezones and daylight saving, quiet hours that cross midnight, the contact asleep check, and the timezone guess from the internet connection at setup. (The moved-country prompt moved to ticket 1.6.)
 
 **1.9 Housekeeping.** Bin clear-out after 30 days, removing old messages, the storage alert, the offline-for-24-hours alert, and the low battery alert logic.
 
