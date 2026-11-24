@@ -21,7 +21,7 @@
 
 - M5Stack Core2 (ESP32 with 8 MB PSRAM) with the base that has 10 RGB LEDs. Built-in mic, speaker, 2-inch touch screen, three touch buttons under the screen and a battery.
 - There are two hardware revisions of the Core2 with different power chips. Use the M5Unified library so either works.
-- microSD card, 16 or 32 GB, formatted FAT32.
+- microSD card, 16 GB (the most M5Stack supports for the Core2), formatted FAT32.
 - Mostly plugged in. On battery it should manage about an hour of active use.
 
 ## 4. The child's experience
