@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "app/Version.h"
 #include "app/bot/Bot.h"
 #include "app/invites/InviteFlows.h"
 #include "app/settings/AdminSettings.h"
@@ -551,6 +552,11 @@ void test_status() {
     TEST_ASSERT_TRUE(contains(s, "MB of 17,179 MB used (0%)"));
     TEST_ASSERT_TRUE(contains(s, "Waiting to send: 1 voice notes"));
     TEST_ASSERT_TRUE(contains(s, "Firmware: "));
+    TEST_ASSERT_FALSE(contains(s, "Device: "));  // left out until a build says what it is
+
+    setDeviceDescription("Test hardware");
+    TEST_ASSERT_TRUE(contains(settings->statusText(), "\nDevice: Test hardware\nFirmware: "));
+    setDeviceDescription("");
 
     hw->power.battery = -1;
     hw->files.mounted = false;

@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
     }
 
     fvb::installStopHandler();
+    fvb::setDeviceDescription("Laptop (desktop build)");
 
     fvb::DesktopFileStorage files(dataFolder / "sdcard");
     fvb::DesktopSettingsStore settings(dataFolder / "nvs");

@@ -1,5 +1,6 @@
 #include "platform/core2/Core2Hardware.h"
 
+#include <Adafruit_NeoPixel.h>
 #include <M5Unified.h>
 #include <sys/time.h>
 
@@ -111,7 +112,29 @@ void Core2Input::update() {
     if (M5.BtnB.wasPressed()) { e.button = Button::Middle; push(e); }
     if (M5.BtnC.wasPressed()) { e.button = Button::Right; push(e); }
 
-    // Taps and swipes on the screen come in ticket 2.1.
+    // Taps and swipes on the screen itself. Touches that start on the three
+    // buttons under the screen are left to the button checks above.
+    const auto touch = M5.Touch.getDetail();
+    if (touch.base_y < kScreenBottom) {
+        if (touch.wasClicked()) {
+            InputEvent tap;
+            tap.type = InputEvent::Type::Tap;
+            tap.x = touch.x;
+            tap.y = touch.y;
+            push(tap);
+        } else if (touch.wasFlicked()) {
+            const int dx = touch.distanceX();
+            const int dy = touch.distanceY();
+            InputEvent swipe;
+            swipe.type = InputEvent::Type::Swipe;
+            if (abs(dx) >= abs(dy)) {
+                swipe.swipe = dx < 0 ? SwipeDirection::Left : SwipeDirection::Right;
+            } else {
+                swipe.swipe = dy < 0 ? SwipeDirection::Up : SwipeDirection::Down;
+            }
+            push(swipe);
+        }
+    }
 }
 
 bool Core2Input::pollEvent(InputEvent& event) {
@@ -120,6 +143,48 @@ bool Core2Input::pollEvent(InputEvent& event) {
     head_ = (head_ + 1) % kQueueSize;
     --count_;
     return true;
+}
+
+// ---- LEDs ----
+
+namespace {
+// The M5GO Bottom2 base's LEDs are on pin 25.
+constexpr int kLedPin = 25;
+constexpr uint8_t kLedCount = 10;
+// Full brightness is harsh close up and draws a lot of power. Ticket 2.5
+// decides the real level; this keeps testing comfortable.
+constexpr uint8_t kLedBrightness = 40;  // out of 255
+Adafruit_NeoPixel ledStrip(kLedCount, kLedPin, NEO_GRB + NEO_KHZ800);
+}  // namespace
+
+void Core2Leds::begin() {
+    ledStrip.begin();
+    ledStrip.setBrightness(kLedBrightness);
+    ledStrip.clear();
+    ledStrip.show();
+}
+
+void Core2Leds::setPixel(uint8_t index, Colour colour) {
+    if (index < kLedCount) ledStrip.setPixelColor(index, colour.r, colour.g, colour.b);
+}
+
+void Core2Leds::setAll(Colour colour) {
+    for (uint8_t i = 0; i < kLedCount; ++i) setPixel(i, colour);
+}
+
+void Core2Leds::show() { ledStrip.show(); }
+
+// ---- Which Core2 ----
+
+std::string core2Description() {
+    switch (M5.Power.getType()) {
+        case m5::Power_Class::pmic_axp192:
+            return "M5Stack Core2 (first version, AXP192 power chip)";
+        case m5::Power_Class::pmic_axp2101:
+            return "M5Stack Core2 v1.1 (AXP2101 power chip)";
+        default:
+            return "M5Stack Core2 (power chip not recognised)";
+    }
 }
 
 }  // namespace fvb

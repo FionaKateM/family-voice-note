@@ -2,12 +2,15 @@
 
 // Core2 versions of the hardware interfaces.
 //
-// At this stage (ticket 1.1) these only need to compile. Clock, Logger, Power,
-// Display and Input use M5Unified and should roughly work. Storage, settings,
-// network, audio and LEDs are placeholders that ticket 2.1 (bring-up) replaces.
+// Everything except audio and installing updates is real as of ticket 2.1
+// (bring-up). Audio comes in ticket 2.2 and installing updates in 2.7; until
+// then those are placeholders.
 
 #include "hal/FirmwareInstaller.h"
 #include "hal/Hardware.h"
+
+#include <string>
+#include <vector>
 
 namespace fvb {
 
@@ -64,47 +67,106 @@ public:
 
 private:
     static constexpr int kQueueSize = 8;
+    // Taps and swipes below this line are on the three touch buttons, which
+    // M5Unified reports as button presses instead.
+    static constexpr int16_t kScreenBottom = 240;
     void push(const InputEvent& event);
     InputEvent queue_[kQueueSize];
     int head_ = 0;
     int count_ = 0;
 };
 
-// ---- Placeholders until ticket 2.1 ----
+// ---- SD card ----
 
-class Core2PlaceholderFileStorage : public FileStorage {
+// The microSD card, formatted FAT32. Shares its connection (the SPI bus) with
+// the screen; that's fine while everything runs on one task. Ticket 2.3 adds
+// locking when Telegram moves onto its own task.
+class Core2FileStorage : public FileStorage {
 public:
-    bool isMounted() const override { return false; }
-    bool exists(const std::string&) const override { return false; }
-    bool readFile(const std::string&, std::string&) const override { return false; }
-    bool writeFile(const std::string&, const std::string&) override { return false; }
-    bool appendFile(const std::string&, const std::string&) override { return false; }
-    bool removeFile(const std::string&) override { return false; }
-    bool renameFile(const std::string&, const std::string&) override { return false; }
-    int64_t fileSize(const std::string&) const override { return -1; }
-    bool makeDir(const std::string&) override { return false; }
-    bool removeDir(const std::string&) override { return false; }
-    std::vector<std::string> listDir(const std::string&) const override { return {}; }
-    uint64_t totalBytes() const override { return 0; }
-    uint64_t usedBytes() const override { return 0; }
+    // Call once after M5.begin(). Returns false if there's no card, or it can't be read.
+    bool begin();
+
+    bool isMounted() const override { return mounted_; }
+    bool exists(const std::string& path) const override;
+    bool readFile(const std::string& path, std::string& contents) const override;
+    bool writeFile(const std::string& path, const std::string& contents) override;
+    bool appendFile(const std::string& path, const std::string& contents) override;
+    bool removeFile(const std::string& path) override;
+    bool renameFile(const std::string& from, const std::string& to) override;
+    int64_t fileSize(const std::string& path) const override;
+    bool makeDir(const std::string& path) override;
+    bool removeDir(const std::string& path) override;
+    std::vector<std::string> listDir(const std::string& path) const override;
+    uint64_t totalBytes() const override;
+    uint64_t usedBytes() const override;
+
+private:
+    bool write(const std::string& path, const std::string& contents, bool append);
+    bool removeTree(const std::string& path);
+    bool mounted_ = false;
 };
 
-class Core2PlaceholderSettingsStore : public SettingsStore {
+// ---- Internal memory (NVS) ----
+
+class Core2SettingsStore : public SettingsStore {
 public:
-    bool has(const std::string&) const override { return false; }
-    std::string getString(const std::string&, const std::string& fallback = "") const override { return fallback; }
-    bool setString(const std::string&, const std::string&) override { return false; }
-    int64_t getInt(const std::string&, int64_t fallback = 0) const override { return fallback; }
-    bool setInt(const std::string&, int64_t) override { return false; }
-    bool remove(const std::string&) override { return false; }
+    // Call once in setup(). Internal memory isn't ready while global objects are
+    // being made, so this can't happen in the constructor.
+    bool begin();
+
+    bool has(const std::string& key) const override;
+    std::string getString(const std::string& key, const std::string& fallback = "") const override;
+    bool setString(const std::string& key, const std::string& value) override;
+    int64_t getInt(const std::string& key, int64_t fallback = 0) const override;
+    bool setInt(const std::string& key, int64_t value) override;
+    bool remove(const std::string& key) override;
+
+private:
+    bool ready_ = false;
 };
 
-class Core2PlaceholderNetwork : public Network {
+// ---- Wi-Fi and HTTPS ----
+
+// Joins a Wi-Fi network, waiting up to timeoutMs. Remembering several networks
+// and the setup hotspot come in ticket 2.4.
+bool core2JoinWifi(const std::string& name, const std::string& password, uint32_t timeoutMs);
+
+// HTTPS requests over Wi-Fi. Each Core2Network keeps its own connection open
+// between requests, so the box can have one for the long poll and one for
+// sending, as the desktop build does. Servers are checked against the root
+// certificates in RootCertificates.h, and plain HTTP is refused.
+class Core2Network : public Network {
 public:
-    bool isConnected() const override { return false; }
-    int8_t signalStrength() const override { return 0; }
-    HttpResponse request(const HttpRequest&) override { return HttpResponse{0, "", "not built yet"}; }
+    Core2Network();
+    ~Core2Network() override;
+
+    bool isConnected() const override;
+    int8_t signalStrength() const override;
+    std::string wifiName() const override;
+    HttpResponse request(const HttpRequest& request) override;
+
+private:
+    struct Connection;  // the TLS client and HTTP client, kept out of this header
+    Connection* connection_;
 };
+
+// ---- LEDs ----
+
+// The 10 RGB LEDs on the M5GO Bottom2 base (the one with the side light bars).
+class Core2Leds : public Leds {
+public:
+    void begin();
+    uint8_t count() const override { return 10; }
+    void setPixel(uint8_t index, Colour colour) override;
+    void setAll(Colour colour) override;
+    void show() override;
+};
+
+// Which Core2 this is, for /status. The two hardware versions use different
+// power chips, which M5Unified tells apart. Call after M5.begin().
+std::string core2Description();
+
+// ---- Placeholders ----
 
 class Core2PlaceholderAudio : public Audio {
 public:
@@ -118,13 +180,6 @@ public:
     uint8_t inputLevel() const override { return 0; }
 };
 
-class Core2PlaceholderLeds : public Leds {
-public:
-    uint8_t count() const override { return 10; }
-    void setPixel(uint8_t, Colour) override {}
-    void setAll(Colour) override {}
-    void show() override {}
-};
 
 // Installing over the air comes in ticket 2.7 (using the ESP32's two app
 // slots and its automatic rollback). Until then it refuses, but restarting

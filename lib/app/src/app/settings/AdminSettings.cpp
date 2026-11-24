@@ -871,6 +871,7 @@ std::string AdminSettings::statusText() const {
     }
 
     out += "\nWaiting to send: " + std::to_string(storage_.outbox.size()) + " voice notes";
+    if (!deviceDescription().empty()) out += "\nDevice: " + deviceDescription();
     out += "\nFirmware: " + firmwareVersion();
     return out;
 }
