@@ -21,6 +21,12 @@ const std::string& firmwareVersion();
 // running `version` instead. An empty string goes back to kFirmwareVersion.
 void setPretendFirmwareVersion(const std::string& version);
 
+// What the box is running on, for /status: which Core2 version it is, or the
+// laptop. Set once at start-up by each build. Empty until then, and /status
+// leaves the line out while it's empty.
+const std::string& deviceDescription();
+void setDeviceDescription(const std::string& description);
+
 namespace version {
 
 // Reads "1.3", "1.3.0" or "v1.3.0" into its numbers. False for anything else,

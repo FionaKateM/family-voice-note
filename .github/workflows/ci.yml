@@ -51,5 +51,7 @@ jobs:
           key: pio-core2-${{ hashFiles('platformio.ini') }}
       - run: pip install platformio==6.2.0
       - run: pio run -e core2
+      - name: Build the hardware check
+        run: pio run -e core2-check
       - name: Package a practice release (not published)
         run: scripts/make-release.sh .pio/build/core2/firmware.bin "$RUNNER_TEMP/release" --notes "CI check"

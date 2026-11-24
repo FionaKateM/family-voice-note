@@ -17,6 +17,17 @@ const std::string& firmwareVersion() {
 
 void setPretendFirmwareVersion(const std::string& version) { pretendVersion() = version; }
 
+namespace {
+std::string& deviceText() {
+    static std::string value;
+    return value;
+}
+}  // namespace
+
+const std::string& deviceDescription() { return deviceText(); }
+
+void setDeviceDescription(const std::string& description) { deviceText() = description; }
+
 namespace version {
 
 bool parse(const std::string& text, std::vector<int>& out) {
