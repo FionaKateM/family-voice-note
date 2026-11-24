@@ -85,7 +85,7 @@ pio run -e core2
 ### Trying it on the device
 
 1. Put a `setup.txt` on a microSD card (16 or 32 GB, formatted FAT32), the same as `secrets/setup.txt`, and put the card in the Core2.
-2. Plug the Core2 into the computer with a USB-C data cable. If PlatformIO can't find it, install the CH9102 USB driver from M5Stack's website.
+2. Plug the Core2 into the computer with a USB-C data cable. If PlatformIO can't find it, install the USB driver from M5Stack's Core2 page: CP210x for the first Core2, CH9102 for the v1.1.
 3. Install the hardware check and watch its messages:
 
 ```bash
