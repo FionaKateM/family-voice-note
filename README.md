@@ -82,6 +82,29 @@ Build the real device firmware:
 pio run -e core2
 ```
 
+### Trying it on the device
+
+1. Put a `setup.txt` on a microSD card (16 or 32 GB, formatted FAT32), the same as `secrets/setup.txt`, and put the card in the Core2.
+2. Plug the Core2 into the computer with a USB-C data cable. If PlatformIO can't find it, install the CH9102 USB driver from M5Stack's website.
+3. Install the hardware check and watch its messages:
+
+```bash
+pio run -e core2-check -t upload
+pio device monitor
+```
+
+The screen lists each part of the device and whether it works: which Core2 it is, the SD card, internal memory, the setup file, Wi-Fi, the clock, Telegram and the battery. Green is working, red isn't, amber is waiting. Then tap and swipe the screen and press each of the three buttons: the bottom two rows say what was pressed, and the LEDs change colour (red, green, blue for the buttons, white for a tap). When nothing's pressed, one amber LED goes round, so a dead one stands out.
+
+The check reads `setup.txt` the way the real firmware does: it saves the values to internal memory and deletes the file. Installing the real firmware afterwards keeps them:
+
+```bash
+pio run -e core2 -t upload
+```
+
+Until ticket 2.3, the real firmware shows its screens but doesn't talk to Telegram, and until ticket 2.2 it has no sound.
+
+The device trusts a short list of root certificates for HTTPS (`lib/platform_core2/src/platform/core2/RootCertificates.h`). If Telegram or GitHub ever stop working with a certificate error on the serial port, remake that file with `scripts/make-root-certs.py`.
+
 GitHub Actions runs all of these, plus a check for secrets, on every push.
 
 Releases are published by hand from the Actions tab. See [docs/updates.md](docs/updates.md#publishing-a-new-version).

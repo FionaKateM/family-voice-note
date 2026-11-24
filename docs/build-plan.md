@@ -40,7 +40,7 @@ Goal: a working box on a laptop that talks to real Telegram. Everything except t
 
 Goal: everything from Stage 1 running on the Core2, the audio proven, and an interface Fiona is happy with.
 
-**2.1 Bring-up.** M5Unified, screen, touch, buttons, LEDs, SD card and Wi-Fi all working. `/status` reports which Core2 hardware revision it is.
+**2.1 Bring-up.** M5Unified, screen, touch, buttons, LEDs, SD card and Wi-Fi all working. `/status` reports which Core2 hardware revision it is. Done as a hardware check build (`pio run -e core2-check -t upload`) that shows each part working on screen. `/status` gained a Device line, which shows on the device once Telegram runs there (ticket 2.3).
 
 **2.2 Audio test (do this before anything else in Stage 2).** Play a real Telegram voice note, then record an MP3 and send it, with the screen running at the same time. Report on sound quality, memory and processor load. This is a go/no-go point.
 
